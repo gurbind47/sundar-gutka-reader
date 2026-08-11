@@ -2,7 +2,7 @@
  * - App shell (HTML/CSS/JS): network-first, fall back to cache
  * - Heavy assets (PDF, PDF.js, text index, icons): cache-first
  */
-const CACHE = "sundar-gutka-v4";
+const CACHE = "sundar-gutka-v5";
 
 const PRECACHE = [
   "./",
@@ -21,6 +21,12 @@ const PRECACHE = [
 
 const SHELL_RE = /\/(index\.html)?$|\/css\/|\/js\/|manifest\.webmanifest$/;
 const HEAVY_RE = /\/(assets|lib|data|icons)\//;
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gurmukhi:wght@400;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/styles.css?v=5" />
   <script>
     /* Apply theme before paint to avoid flash */
     (function () {
@@ -35,6 +35,18 @@
         if (pref === "system" && window.matchMedia("(prefers-color-scheme: light)").matches) night = false;
         document.documentElement.setAttribute("data-resolved", night ? "night" : "day");
       } catch (e) {}
+      /* Drop stale offline caches from older builds */
+      try {
+        if ("caches" in window) {
+          caches.keys().then(function (keys) {
+            keys.forEach(function (k) {
+              if (k.indexOf("sundar-gutka-") === 0 && k !== "sundar-gutka-v5") {
+                caches.delete(k);
+              }
+            });
+          });
+        }
+      } catch (e2) {}
     })();
   </script>
 </head>
@@ -131,6 +143,6 @@
     <div id="searchResults" class="search-results" role="list"></div>
   </section>
 
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/app.js?v=5"></script>
 </body>
 </html>

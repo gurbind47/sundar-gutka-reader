@@ -1091,8 +1091,32 @@ async function init() {
   }
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(function (err) {
-      console.warn("SW register failed", err);
+    navigator.serviceWorker
+      .register("sw.js?v=5")
+      .then(function (reg) {
+        reg.update().catch(function () {});
+        // If a new worker is waiting, activate it immediately
+        if (reg.waiting) {
+          reg.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
+        reg.addEventListener("updatefound", function () {
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener("statechange", function () {
+            if (nw.state === "installed" && navigator.serviceWorker.controller) {
+              nw.postMessage({ type: "SKIP_WAITING" });
+            }
+          });
+        });
+      })
+      .catch(function (err) {
+        console.warn("SW register failed", err);
+      });
+    navigator.serviceWorker.addEventListener("controllerchange", function () {
+      // Reload once when the new SW takes control
+      if (window.__sgReloadedForSw) return;
+      window.__sgReloadedForSw = true;
+      window.location.reload();
     });
   }
 }
