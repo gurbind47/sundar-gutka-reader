@@ -1,6 +1,6 @@
 /**
  * Sundar Gutka Auto-Scroll Reader
- * PDF.js 6 + path auto-scroll + banis + zoom + theme + search + text mode
+ * PDF.js 6 + path auto-scroll + banis + zoom + theme + search
  */
 import * as pdfjsLib from "../lib/pdf.min.mjs";
 
@@ -49,7 +49,6 @@ const BANIS = [
 const els = {
   viewer: document.getElementById("viewer"),
   pages: document.getElementById("pages"),
-  textReader: document.getElementById("textReader"),
   status: document.getElementById("status"),
   btnPlay: document.getElementById("btnPlay"),
   playIcon: document.getElementById("playIcon"),
@@ -71,8 +70,6 @@ const els = {
   themeIcon: document.getElementById("themeIcon"),
   themeLabel: document.getElementById("themeLabel"),
   metaThemeColor: document.getElementById("metaThemeColor"),
-  btnMode: document.getElementById("btnMode"),
-  modeLabel: document.getElementById("modeLabel"),
   btnSearch: document.getElementById("btnSearch"),
   searchPanel: document.getElementById("searchPanel"),
   searchBackdrop: document.getElementById("searchBackdrop"),
@@ -87,11 +84,10 @@ const state = {
   pdf: null,
   numPages: 0,
   pageEls: [],
-  textPages: null, // string[] | null
+  textPages: null, // string[] | null — for search only
   speed: 3,
   zoom: 100,
   theme: "system",
-  mode: "pdf", // pdf | text
   playing: false,
   currentPage: 1,
   rafId: null,
@@ -112,10 +108,6 @@ function speedToPxPerSec(level) {
 }
 
 function avgRenderedPageHeight() {
-  if (state.mode === "text") {
-    const sample = els.textReader.querySelector(".text-page");
-    return sample ? sample.offsetHeight || REF_PAGE_HEIGHT : REF_PAGE_HEIGHT;
-  }
   let sum = 0;
   let count = 0;
   for (const entry of state.pageEls) {
@@ -135,8 +127,7 @@ function avgRenderedPageHeight() {
 function pacedPxPerSec() {
   const base = speedToPxPerSec(state.speed);
   const pageH = avgRenderedPageHeight();
-  const zoomFactor = state.mode === "text" ? state.zoom / 100 : 1;
-  return base * (pageH / REF_PAGE_HEIGHT) * zoomFactor;
+  return base * (pageH / REF_PAGE_HEIGHT);
 }
 
 // ——— Persistence ———
@@ -152,7 +143,6 @@ function loadPrefs() {
     if (data.theme === "day" || data.theme === "night" || data.theme === "system") {
       state.theme = data.theme;
     }
-    if (data.mode === "pdf" || data.mode === "text") state.mode = data.mode;
   } catch (_) {
     /* ignore */
   }
@@ -167,7 +157,6 @@ function savePrefsImmediate() {
         page: state.currentPage,
         zoom: state.zoom,
         theme: state.theme,
-        mode: state.mode,
       })
     );
   } catch (_) {
@@ -287,17 +276,6 @@ function updateZoomUI() {
   if (els.btnZoomIn) els.btnZoomIn.disabled = state.zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1];
 }
 
-function updateModeUI() {
-  if (els.modeLabel) els.modeLabel.textContent = state.mode === "text" ? "Text" : "PDF";
-  if (els.btnMode) {
-    els.btnMode.title =
-      state.mode === "text"
-        ? "Switch to PDF page view (M)"
-        : "Switch to reflow text view (M)";
-  }
-  document.documentElement.setAttribute("data-mode", state.mode);
-}
-
 function updatePageUI(page) {
   state.currentPage = page;
   if (document.activeElement !== els.pageInput) {
@@ -339,7 +317,6 @@ document.addEventListener("visibilitychange", () => {
 // ——— Visible page (binary search on offsetTop — no layout thrash) ———
 
 function getVisiblePage() {
-  if (state.mode === "text") return getVisibleTextPage();
   const n = state.pageEls.length;
   if (!n) return 1;
 
@@ -354,34 +331,15 @@ function getVisiblePage() {
   return lo + 1;
 }
 
-function getVisibleTextPage() {
-  const nodes = els.textReader.querySelectorAll(".text-page");
-  if (!nodes.length) return state.currentPage;
-  const scrollMid = els.viewer.scrollTop + els.viewer.clientHeight * 0.35;
-  let best = 1;
-  let lo = 0;
-  let hi = nodes.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi + 1) >> 1;
-    if (nodes[mid].offsetTop <= scrollMid) lo = mid;
-    else hi = mid - 1;
-  }
-  best = Number(nodes[lo].dataset.page) || 1;
-  return best;
-}
-
 function onScroll() {
-  if (state.ignoreScrollPause) {
-    // Still update page number / renders during programmatic scroll
-  }
-  if (!state.numPages && state.mode === "pdf") return;
+  if (!state.numPages) return;
   const page = getVisiblePage();
   if (page !== state.currentPage) {
     updatePageUI(page);
     savePrefs();
     updateDeepLink();
   }
-  if (state.mode === "pdf") scheduleVisibleRenders();
+  scheduleVisibleRenders();
 }
 
 function onUserScrollIntent() {
@@ -486,7 +444,7 @@ function invalidateAllPages() {
 }
 
 function scheduleVisibleRenders() {
-  if (!state.numPages || state.mode !== "pdf") return;
+  if (!state.numPages) return;
   const current = getVisiblePage();
   const from = Math.max(1, current - RENDER_BUFFER);
   const to = Math.min(state.numPages, current + RENDER_BUFFER);
@@ -533,14 +491,9 @@ function setZoom(nextZoom) {
 
   window.clearTimeout(state.zoomTimer);
   state.zoomTimer = window.setTimeout(() => {
-    if (state.mode === "text") {
-      applyTextZoom();
-      goToPage(pageBefore);
-    } else {
-      invalidateAllPages();
-      goToPage(pageBefore);
-      scheduleVisibleRenders();
-    }
+    invalidateAllPages();
+    goToPage(pageBefore);
+    scheduleVisibleRenders();
   }, 80);
 }
 
@@ -591,71 +544,6 @@ function buildPlaceholders() {
   els.pages.appendChild(frag);
 }
 
-// ——— Text mode ———
-
-function applyTextZoom() {
-  const px = Math.round(18 * (state.zoom / 100));
-  els.textReader.style.fontSize = px + "px";
-}
-
-function baniForPage(page) {
-  let current = BANIS[0];
-  for (const b of BANIS) {
-    if (page >= b.page) current = b;
-    else break;
-  }
-  return current;
-}
-
-function buildTextReader() {
-  if (!state.textPages) return;
-  els.textReader.innerHTML = "";
-  const frag = document.createDocumentFragment();
-  let lastBani = null;
-  for (let i = 0; i < state.textPages.length; i++) {
-    const pageNum = i + 1;
-    const bani = baniForPage(pageNum);
-    if (!lastBani || lastBani.slug !== bani.slug) {
-      const h = document.createElement("h2");
-      h.className = "text-bani-title";
-      h.id = "bani-" + bani.slug;
-      h.textContent = bani.name;
-      frag.appendChild(h);
-      lastBani = bani;
-    }
-    const article = document.createElement("article");
-    article.className = "text-page";
-    article.dataset.page = String(pageNum);
-    article.setAttribute("aria-label", "Page " + pageNum);
-
-    const meta = document.createElement("div");
-    meta.className = "text-page-meta";
-    meta.textContent = "p. " + pageNum;
-    article.appendChild(meta);
-
-    const body = document.createElement("div");
-    body.className = "text-page-body";
-    body.textContent = state.textPages[i] || "";
-    article.appendChild(body);
-
-    frag.appendChild(article);
-  }
-  els.textReader.appendChild(frag);
-  applyTextZoom();
-}
-
-function applyMode() {
-  updateModeUI();
-  const text = state.mode === "text";
-  els.pages.classList.toggle("hidden", text);
-  els.textReader.classList.toggle("hidden", !text);
-  els.textReader.setAttribute("aria-hidden", text ? "false" : "true");
-  if (text) {
-    if (!els.textReader.childElementCount) buildTextReader();
-    applyTextZoom();
-  }
-}
-
 async function ensurePdfLoaded() {
   if (state.pdf) return;
   setStatus("Loading Sundar Gutka…");
@@ -674,63 +562,20 @@ async function ensurePdfLoaded() {
   setStatus("");
 }
 
-async function setMode(mode) {
-  if (mode !== "pdf" && mode !== "text") return;
-  if (mode === state.mode) {
-    updateModeUI();
-    return;
-  }
-  pause();
-  const page = state.currentPage;
-  state.mode = mode;
-  try {
-    if (mode === "text" && !state.textPages) {
-      setStatus("Loading text…");
-      await loadTextIndex();
-      setStatus("");
-    }
-    if (mode === "pdf" && !state.pdf) {
-      await ensurePdfLoaded();
-    }
-  } catch (err) {
-    console.error(err);
-    setStatus("Failed to switch mode. " + (err && err.message ? err.message : ""), true);
-    state.mode = mode === "pdf" ? "text" : "pdf";
-  }
-  applyMode();
-  savePrefs();
-  requestAnimationFrame(() => {
-    goToPage(page);
-    if (state.mode === "pdf") scheduleVisibleRenders();
-  });
-}
-
-function toggleMode() {
-  setMode(state.mode === "pdf" ? "text" : "pdf");
-}
-
 // ——— Navigation ———
 
 function goToPage(pageNum) {
-  const n = Math.min(
-    state.numPages || state.textPages?.length || 1,
-    Math.max(1, Math.round(Number(pageNum) || 1))
-  );
+  const n = Math.min(state.numPages || 1, Math.max(1, Math.round(Number(pageNum) || 1)));
 
   withProgrammaticScroll(() => {
     state.scrollCarry = 0;
-    if (state.mode === "text") {
-      const node = els.textReader.querySelector('.text-page[data-page="' + n + '"]');
-      if (node) els.viewer.scrollTop = Math.max(0, node.offsetTop - 8);
-    } else {
-      const entry = state.pageEls[n - 1];
-      if (!entry) return;
-      els.viewer.scrollTop = Math.max(0, entry.wrap.offsetTop - 8);
-    }
+    const entry = state.pageEls[n - 1];
+    if (!entry) return;
+    els.viewer.scrollTop = Math.max(0, entry.wrap.offsetTop - 8);
     updatePageUI(n);
     savePrefs();
     updateDeepLink();
-    if (state.mode === "pdf") scheduleVisibleRenders();
+    scheduleVisibleRenders();
   });
 }
 
@@ -964,7 +809,7 @@ function tick(ts) {
       savePrefs();
       updateDeepLink();
     }
-    if (state.mode === "pdf") scheduleVisibleRenders();
+    scheduleVisibleRenders();
   }
 
   state.rafId = requestAnimationFrame(tick);
@@ -981,8 +826,7 @@ window.__sg = {
 
 function play() {
   if (state.playing) return;
-  if (state.mode === "pdf" && !state.pdf) return;
-  if (state.mode === "text" && !state.textPages) return;
+  if (!state.pdf) return;
   state.playing = true;
   state.lastTs = 0;
   state.scrollCarry = 0;
@@ -1019,14 +863,9 @@ function onResize() {
   window.clearTimeout(state.resizeTimer);
   state.resizeTimer = window.setTimeout(() => {
     const page = state.currentPage;
-    if (state.mode === "pdf") {
-      invalidateAllPages();
-      goToPage(page);
-      scheduleVisibleRenders();
-    } else {
-      applyTextZoom();
-      goToPage(page);
-    }
+    invalidateAllPages();
+    goToPage(page);
+    scheduleVisibleRenders();
   }, 200);
 }
 
@@ -1041,7 +880,6 @@ async function init() {
   updateSpeedUI();
   updateZoomUI();
   updatePlayButton();
-  updateModeUI();
   els.pageInput.value = String(state.currentPage);
   buildBanisList();
 
@@ -1050,49 +888,28 @@ async function init() {
     import.meta.url
   ).href;
 
-  // Prefetch text index in background (search / text mode)
+  // Prefetch text index in background (search)
   loadTextIndex().catch(() => {});
 
-  if (state.mode === "text") {
-    setStatus("Loading text…");
-    try {
-      await loadTextIndex();
-      state.numPages = state.textPages.length;
-      els.pageTotal.textContent = "/ " + state.numPages;
-      els.pageInput.max = String(state.numPages);
-      applyMode();
-      setStatus("");
-      const startPage = Math.min(state.numPages, Math.max(1, state.currentPage));
-      requestAnimationFrame(() => goToPage(startPage));
-    } catch (err) {
-      console.error(err);
-      state.mode = "pdf";
-      applyMode();
-    }
-  }
-
-  if (state.mode === "pdf") {
-    try {
-      await ensurePdfLoaded();
-      applyMode();
-      const startPage = Math.min(state.numPages, Math.max(1, state.currentPage));
-      requestAnimationFrame(() => {
-        goToPage(startPage);
-        scheduleVisibleRenders();
-      });
-    } catch (err) {
-      console.error(err);
-      setStatus(
-        "Failed to load PDF. Use the Desktop app, or open via a local server (see README). " +
-          (err && err.message ? err.message : ""),
-        true
-      );
-    }
+  try {
+    await ensurePdfLoaded();
+    const startPage = Math.min(state.numPages, Math.max(1, state.currentPage));
+    requestAnimationFrame(() => {
+      goToPage(startPage);
+      scheduleVisibleRenders();
+    });
+  } catch (err) {
+    console.error(err);
+    setStatus(
+      "Failed to load PDF. Use the Desktop app, or open via a local server (see README). " +
+        (err && err.message ? err.message : ""),
+      true
+    );
   }
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker
-      .register("sw.js?v=5")
+      .register("sw.js?v=6")
       .then(function (reg) {
         reg.update().catch(function () {});
         // If a new worker is waiting, activate it immediately
@@ -1134,7 +951,6 @@ els.speedSlider.addEventListener("input", () => {
 if (els.btnZoomIn) els.btnZoomIn.addEventListener("click", zoomIn);
 if (els.btnZoomOut) els.btnZoomOut.addEventListener("click", zoomOut);
 if (els.btnTheme) els.btnTheme.addEventListener("click", cycleTheme);
-if (els.btnMode) els.btnMode.addEventListener("click", toggleMode);
 
 function applyPageJump() {
   goToPage(els.pageInput.value);
@@ -1174,8 +990,8 @@ els.viewer.addEventListener(
 );
 
 els.viewer.addEventListener("click", (e) => {
-  if (e.target.closest(".page-wrap") || e.target.closest(".text-page") || e.target === els.viewer || e.target === els.pages || e.target === els.textReader) {
-    if (state.mode === "pdf" && !state.pdf) return;
+  if (e.target.closest(".page-wrap") || e.target === els.viewer || e.target === els.pages) {
+    if (!state.pdf) return;
     if (window.matchMedia("(pointer: fine)").matches) {
       togglePlay();
     }
@@ -1225,8 +1041,6 @@ document.addEventListener("keydown", (e) => {
   } else if (e.key === "f" || e.key === "F" || ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K"))) {
     e.preventDefault();
     toggleSearch();
-  } else if (e.key === "m" || e.key === "M") {
-    toggleMode();
   } else if (e.key === "+" || e.key === "=") {
     e.preventDefault();
     zoomIn();

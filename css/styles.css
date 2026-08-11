@@ -691,65 +691,9 @@ html[data-resolved="day"] .page-badge {
   padding: 0 2px;
 }
 
-/* ——— Text / reflow reader ——— */
-
-.text-reader {
-  max-width: 42rem;
-  margin: 0 auto;
-  padding: 1rem 1.1rem 3rem;
-  padding-bottom: calc(3rem + var(--safe-bottom));
-  font-family: "Noto Sans Gurmukhi", "Gurmukhi MN", "Noto Sans", sans-serif;
-  font-size: 18px;
-  line-height: 1.75;
-  color: var(--text);
-}
-
-.text-bani-title {
-  margin: 1.75rem 0 0.75rem;
-  font-size: 1.35em;
-  font-weight: 700;
-  color: var(--accent);
-  text-align: center;
-  letter-spacing: 0.01em;
-}
-
-.text-bani-title:first-child {
-  margin-top: 0.5rem;
-}
-
-.text-page {
-  margin: 0 0 1.25rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.text-page-meta {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  margin-bottom: 0.35rem;
-  font-family: var(--font);
-}
-
-.text-page-body {
-  white-space: pre-wrap;
-  word-break: break-word;
-  text-align: center;
-}
-
-html[data-mode="text"] .btn-label#modeLabel,
-#modeLabel {
-  min-width: 2.4rem;
-}
-
 @media (max-width: 720px) {
   .toolbar-left {
     justify-content: space-between;
-  }
-
-  .text-reader {
-    padding-left: 0.85rem;
-    padding-right: 0.85rem;
   }
 }
 

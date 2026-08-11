@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gurmukhi:wght@400;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=5" />
+  <link rel="stylesheet" href="css/styles.css?v=6" />
   <script>
     /* Apply theme before paint to avoid flash */
     (function () {
@@ -40,7 +40,7 @@
         if ("caches" in window) {
           caches.keys().then(function (keys) {
             keys.forEach(function (k) {
-              if (k.indexOf("sundar-gutka-") === 0 && k !== "sundar-gutka-v5") {
+              if (k.indexOf("sundar-gutka-") === 0 && k !== "sundar-gutka-v6") {
                 caches.delete(k);
               }
             });
@@ -92,9 +92,6 @@
       </div>
 
       <div class="toolbar-right">
-        <button type="button" id="btnMode" class="btn btn-secondary btn-compact" title="PDF / Text mode (M)" aria-label="Toggle reading mode">
-          <span class="btn-label" id="modeLabel">PDF</span>
-        </button>
         <button type="button" id="btnTheme" class="btn btn-secondary btn-compact" title="Theme: System / Day / Night" aria-label="Toggle theme">
           <span id="themeIcon" aria-hidden="true">◐</span>
           <span class="btn-label" id="themeLabel">Auto</span>
@@ -111,7 +108,6 @@
     <main id="viewer" class="viewer" tabindex="0" aria-label="Sundar Gutka pages">
       <div id="status" class="status" role="status">Loading Sundar Gutka…</div>
       <div id="pages" class="pages"></div>
-      <div id="textReader" class="text-reader hidden" aria-hidden="true"></div>
     </main>
   </div>
 
@@ -143,6 +139,6 @@
     <div id="searchResults" class="search-results" role="list"></div>
   </section>
 
-  <script type="module" src="js/app.js?v=5"></script>
+  <script type="module" src="js/app.js?v=6"></script>
 </body>
 </html>

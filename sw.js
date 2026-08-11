@@ -2,7 +2,7 @@
  * - App shell (HTML/CSS/JS): network-first, fall back to cache
  * - Heavy assets (PDF, PDF.js, text index, icons): cache-first
  */
-const CACHE = "sundar-gutka-v5";
+const CACHE = "sundar-gutka-v6";
 
 const PRECACHE = [
   "./",

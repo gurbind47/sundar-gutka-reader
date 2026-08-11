@@ -7,7 +7,6 @@ Sundar Gutka (Damdami Taksal) path reader for **laptop, tablet, and phone**.
 - **Day / Night / Auto** theme (Auto follows system)
 - **Banis** jump menu (26 banis)
 - **Search** across all pages (Unicode Gurmukhi text index)
-- **Text mode** — reflowable Gurmukhi for comfortable phone reading
 - Deep links: `?page=124` or `?bani=rehras`
 - **Offline install** (Add to Home Screen / PWA)
 - **Desktop app** — double-click to open (Mac)
@@ -57,7 +56,6 @@ Keep the folder **`Desktop/sundar-gutka-reader`** on your Desktop (the app needs
 | **Size − / +** | Smaller / larger text (`-` / `+` keys) |
 | **Banis** | Jump to Japji, Rehras, Sukhmani… (`B`) |
 | **Search** | Find text across the gutka (`F`) |
-| **PDF / Text** | Page scan view or reflow text (`M`) — Text is best on phones |
 | **Auto / Day / Night** | Theme — Auto follows system (`T`) |
 | **Page + Go** | Jump to page number |
 
@@ -89,7 +87,7 @@ Or use `scripts/start-server.sh` / `scripts/stop-server.sh`.
 
 ### Rebuild the text index
 
-The search / text-mode corpus is `data/text-index.json` (AnmolLipi → Unicode via [anvaad-js](https://github.com/KhalisFoundation/anvaad-js)).
+The search corpus is `data/text-index.json` (AnmolLipi → Unicode via [anvaad-js](https://github.com/KhalisFoundation/anvaad-js)).
 
 ```bash
 pip install pymupdf
