@@ -1,5 +1,5 @@
 /* Sundar Gutka offline service worker */
-const CACHE = "sundar-gutka-v2";
+const CACHE = "sundar-gutka-v3";
 const PRECACHE = [
   "./",
   "./index.html",

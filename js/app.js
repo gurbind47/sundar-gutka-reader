@@ -1,6 +1,6 @@
 /**
  * Sundar Gutka Auto-Scroll Reader
- * PDF.js + slow path auto-scroll (1–10) + banis menu + PWA hooks
+ * PDF.js + path auto-scroll + banis + zoom + day/night theme
  */
 (function () {
   "use strict";
@@ -10,24 +10,15 @@
   const PAGE_ASPECT = 2288 / 1425;
   const RENDER_BUFFER = 3;
   const MAX_DPR = 2;
+  const ZOOM_STEPS = [70, 80, 90, 100, 110, 125, 150, 175, 200];
+  const THEME_CYCLE = ["system", "day", "night"];
 
-  /**
-   * Speed 1–10 → pixels/second (path-friendly, much slower than v1).
-   * Fractional pixels are accumulated so levels 1–2 still move.
-   *
-   * 1 ≈ 5 px/s   very slow path
-   * 3 ≈ 14 px/s  comfortable default
-   * 5 ≈ 30 px/s  medium
-   * 10 ≈ 90 px/s faster review
-   */
   function speedToPxPerSec(level) {
     const n = Math.min(10, Math.max(1, Number(level) || 1));
-    // Gentle curve: 5, 8, 12, 17, 24, 33, 44, 57, 72, 90
     const table = [0, 5, 8, 12, 17, 24, 33, 44, 57, 72, 90];
     return table[n];
   }
 
-  /** Banis from Damdami Taksal Sundar Gutka table of contents (PDF page numbers). */
   const BANIS = [
     { name: "Japji Sahib", page: 11 },
     { name: "Jaap Sahib", page: 32 },
@@ -74,6 +65,13 @@
     banisList: document.getElementById("banisList"),
     banisBackdrop: document.getElementById("banisBackdrop"),
     btnCloseBanis: document.getElementById("btnCloseBanis"),
+    btnZoomIn: document.getElementById("btnZoomIn"),
+    btnZoomOut: document.getElementById("btnZoomOut"),
+    zoomValue: document.getElementById("zoomValue"),
+    btnTheme: document.getElementById("btnTheme"),
+    themeIcon: document.getElementById("themeIcon"),
+    themeLabel: document.getElementById("themeLabel"),
+    metaThemeColor: document.getElementById("metaThemeColor"),
   };
 
   const state = {
@@ -81,15 +79,18 @@
     numPages: 0,
     pageEls: [],
     speed: 3,
+    zoom: 100,
+    theme: "system", // system | day | night
     playing: false,
     currentPage: 1,
     rafId: null,
     lastTs: 0,
-    scrollCarry: 0, // fractional pixel accumulator — fixes speed 1–2
+    scrollCarry: 0,
     wakeLock: null,
     ignoreScrollPause: false,
     scrollPauseTimer: null,
     resizeTimer: null,
+    zoomTimer: null,
   };
 
   // ——— Persistence ———
@@ -101,6 +102,10 @@
       const data = JSON.parse(raw);
       if (data.speed >= 1 && data.speed <= 10) state.speed = data.speed;
       if (data.page >= 1) state.currentPage = data.page;
+      if (ZOOM_STEPS.indexOf(data.zoom) !== -1) state.zoom = data.zoom;
+      if (data.theme === "day" || data.theme === "night" || data.theme === "system") {
+        state.theme = data.theme;
+      }
     } catch (_) {
       /* ignore */
     }
@@ -110,11 +115,55 @@
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ speed: state.speed, page: state.currentPage })
+        JSON.stringify({
+          speed: state.speed,
+          page: state.currentPage,
+          zoom: state.zoom,
+          theme: state.theme,
+        })
       );
     } catch (_) {
       /* ignore */
     }
+  }
+
+  // ——— Theme ———
+
+  function resolveNight() {
+    if (state.theme === "night") return true;
+    if (state.theme === "day") return false;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+
+  function applyTheme() {
+    const night = resolveNight();
+    document.documentElement.setAttribute("data-theme", state.theme);
+    document.documentElement.setAttribute("data-resolved", night ? "night" : "day");
+    if (els.metaThemeColor) {
+      els.metaThemeColor.setAttribute("content", night ? "#1a1510" : "#f3efe6");
+    }
+    if (els.themeIcon && els.themeLabel) {
+      if (state.theme === "system") {
+        els.themeIcon.textContent = "◐";
+        els.themeLabel.textContent = "Auto";
+      } else if (state.theme === "day") {
+        els.themeIcon.textContent = "☀";
+        els.themeLabel.textContent = "Day";
+      } else {
+        els.themeIcon.textContent = "☾";
+        els.themeLabel.textContent = "Night";
+      }
+    }
+    if (els.btnTheme) {
+      els.btnTheme.title = "Theme: " + state.theme + " (click to change). Auto follows system.";
+    }
+  }
+
+  function cycleTheme() {
+    const i = THEME_CYCLE.indexOf(state.theme);
+    state.theme = THEME_CYCLE[(i + 1) % THEME_CYCLE.length];
+    applyTheme();
+    savePrefs();
   }
 
   // ——— UI helpers ———
@@ -141,6 +190,12 @@
     els.speedSlider.value = String(state.speed);
     els.speedSlider.setAttribute("aria-valuenow", String(state.speed));
     els.speedValue.textContent = String(state.speed);
+  }
+
+  function updateZoomUI() {
+    if (els.zoomValue) els.zoomValue.textContent = state.zoom + "%";
+    if (els.btnZoomOut) els.btnZoomOut.disabled = state.zoom <= ZOOM_STEPS[0];
+    if (els.btnZoomIn) els.btnZoomIn.disabled = state.zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1];
   }
 
   function updatePageUI(page) {
@@ -214,12 +269,14 @@
     if (state.playing) pause();
   }
 
-  // ——— Render ———
+  // ——— Render / zoom ———
 
   function getRenderWidth() {
     const pad = 16;
-    const w = (els.viewer.clientWidth || window.innerWidth) - pad;
-    return Math.max(280, Math.min(w, 960));
+    const base = Math.max(280, (els.viewer.clientWidth || window.innerWidth) - pad);
+    const w = Math.round(base * (state.zoom / 100));
+    // Higher cap when zoomed so text can grow beyond screen (horizontal scroll)
+    return Math.max(200, Math.min(w, 2000));
   }
 
   async function renderPage(index) {
@@ -243,6 +300,8 @@
       canvas.height = Math.floor(viewport.height);
       canvas.style.width = cssWidth + "px";
       canvas.style.height = Math.floor(unscaled.height * scale) + "px";
+      entry.wrap.style.width = cssWidth + "px";
+      entry.wrap.style.maxWidth = cssWidth + "px";
       entry.wrap.style.aspectRatio = `${unscaled.width} / ${unscaled.height}`;
 
       const renderTask = page.render({
@@ -286,6 +345,16 @@
     entry.rendered = false;
   }
 
+  function invalidateAllPages() {
+    for (const entry of state.pageEls) {
+      if (entry.rendered || entry.rendering) clearCanvas(entry);
+      // Update placeholder size so layout jumps to new zoom immediately
+      const cssWidth = getRenderWidth();
+      entry.wrap.style.width = cssWidth + "px";
+      entry.wrap.style.maxWidth = cssWidth + "px";
+    }
+  }
+
   function scheduleVisibleRenders() {
     if (!state.numPages) return;
     const current = getVisiblePage();
@@ -307,15 +376,62 @@
     }
   }
 
+  function setZoom(nextZoom) {
+    let z = nextZoom;
+    // Snap to nearest step
+    if (ZOOM_STEPS.indexOf(z) === -1) {
+      let best = ZOOM_STEPS[0];
+      let bestD = Infinity;
+      for (let i = 0; i < ZOOM_STEPS.length; i++) {
+        const d = Math.abs(ZOOM_STEPS[i] - z);
+        if (d < bestD) {
+          bestD = d;
+          best = ZOOM_STEPS[i];
+        }
+      }
+      z = best;
+    }
+    z = Math.max(ZOOM_STEPS[0], Math.min(ZOOM_STEPS[ZOOM_STEPS.length - 1], z));
+    if (z === state.zoom) {
+      updateZoomUI();
+      return;
+    }
+
+    const pageBefore = state.currentPage;
+    state.zoom = z;
+    updateZoomUI();
+    savePrefs();
+
+    window.clearTimeout(state.zoomTimer);
+    state.zoomTimer = window.setTimeout(() => {
+      invalidateAllPages();
+      goToPage(pageBefore);
+      scheduleVisibleRenders();
+    }, 80);
+  }
+
+  function zoomIn() {
+    const i = ZOOM_STEPS.indexOf(state.zoom);
+    if (i < ZOOM_STEPS.length - 1) setZoom(ZOOM_STEPS[i + 1]);
+  }
+
+  function zoomOut() {
+    const i = ZOOM_STEPS.indexOf(state.zoom);
+    if (i > 0) setZoom(ZOOM_STEPS[i - 1]);
+  }
+
   function buildPlaceholders() {
     els.pages.innerHTML = "";
     state.pageEls = [];
     const frag = document.createDocumentFragment();
+    const cssWidth = getRenderWidth();
     for (let i = 1; i <= state.numPages; i++) {
       const wrap = document.createElement("div");
       wrap.className = "page-wrap";
       wrap.dataset.page = String(i);
       wrap.style.aspectRatio = String(PAGE_ASPECT);
+      wrap.style.width = cssWidth + "px";
+      wrap.style.maxWidth = cssWidth + "px";
       wrap.setAttribute("aria-label", "Page " + i);
 
       const canvas = document.createElement("canvas");
@@ -359,7 +475,7 @@
     }, 150);
   }
 
-  // ——— Banis menu ———
+  // ——— Banis ———
 
   function buildBanisList() {
     if (!els.banisList) return;
@@ -408,7 +524,7 @@
     else openBanis();
   }
 
-  // ——— Auto-scroll (fractional carry = slow speeds work) ———
+  // ——— Auto-scroll ———
 
   function tick(ts) {
     if (!state.playing) return;
@@ -417,9 +533,10 @@
     state.lastTs = ts;
 
     const pxPerSec = speedToPxPerSec(state.speed);
-    state.scrollCarry += (pxPerSec * dt) / 1000;
+    // Scale scroll speed slightly with zoom so path pace feels similar
+    const zoomFactor = state.zoom / 100;
+    state.scrollCarry += ((pxPerSec * zoomFactor) * dt) / 1000;
 
-    // Browsers often ignore sub-pixel scrollTop — only apply whole pixels
     const step = Math.floor(state.scrollCarry);
     if (step >= 1) {
       state.ignoreScrollPause = true;
@@ -488,9 +605,9 @@
   function onResize() {
     window.clearTimeout(state.resizeTimer);
     state.resizeTimer = window.setTimeout(() => {
-      for (const entry of state.pageEls) {
-        if (entry.rendered || entry.rendering) clearCanvas(entry);
-      }
+      const page = state.currentPage;
+      invalidateAllPages();
+      goToPage(page);
       scheduleVisibleRenders();
     }, 200);
   }
@@ -499,7 +616,9 @@
 
   async function init() {
     loadPrefs();
+    applyTheme();
     updateSpeedUI();
+    updateZoomUI();
     updatePlayButton();
     els.pageInput.value = String(state.currentPage);
     buildBanisList();
@@ -541,7 +660,6 @@
       );
     }
 
-    // Register service worker for offline / install
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").catch(function (err) {
         console.warn("SW register failed", err);
@@ -558,6 +676,10 @@
     updateSpeedUI();
     savePrefs();
   });
+
+  if (els.btnZoomIn) els.btnZoomIn.addEventListener("click", zoomIn);
+  if (els.btnZoomOut) els.btnZoomOut.addEventListener("click", zoomOut);
+  if (els.btnTheme) els.btnTheme.addEventListener("click", cycleTheme);
 
   function applyPageJump() {
     goToPage(els.pageInput.value);
@@ -597,6 +719,15 @@
   window.addEventListener("resize", onResize);
   window.addEventListener("orientationchange", onResize);
 
+  // Follow OS theme when set to Auto
+  try {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      if (state.theme === "system") applyTheme();
+    });
+  } catch (_) {
+    /* older browsers */
+  }
+
   document.addEventListener("keydown", (e) => {
     if (e.target === els.pageInput || e.target.tagName === "INPUT" || e.target.tagName === "SELECT")
       return;
@@ -620,6 +751,14 @@
       savePrefs();
     } else if (e.key === "b" || e.key === "B") {
       toggleBanis();
+    } else if (e.key === "+" || e.key === "=") {
+      e.preventDefault();
+      zoomIn();
+    } else if (e.key === "-" || e.key === "_") {
+      e.preventDefault();
+      zoomOut();
+    } else if (e.key === "t" || e.key === "T") {
+      cycleTheme();
     }
   });
 

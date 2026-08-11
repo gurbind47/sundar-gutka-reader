@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pa">
+<html lang="pa" data-theme="system">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#1a1510" />
+  <meta name="theme-color" content="#1a1510" id="metaThemeColor" />
   <meta name="description" content="Sundar Gutka (Damdami Taksal) — auto-scroll path reader for phone, tablet, and desktop." />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -14,6 +14,26 @@
   <link rel="icon" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="stylesheet" href="css/styles.css" />
+  <script>
+    /* Apply theme before paint to avoid flash */
+    (function () {
+      try {
+        var raw = localStorage.getItem("sundar-gutka-reader-v2");
+        var pref = "system";
+        if (raw) {
+          var d = JSON.parse(raw);
+          if (d.theme === "day" || d.theme === "night" || d.theme === "system") pref = d.theme;
+        }
+        document.documentElement.setAttribute("data-theme", pref);
+        var night =
+          pref === "night" ||
+          (pref === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        if (pref === "day") night = false;
+        if (pref === "system" && window.matchMedia("(prefers-color-scheme: light)").matches) night = false;
+        document.documentElement.setAttribute("data-resolved", night ? "night" : "day");
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <div id="app">
@@ -44,9 +64,20 @@
           />
           <span class="speed-value" id="speedValue">3</span>
         </label>
+
+        <div class="zoom-control" role="group" aria-label="Text size">
+          <span class="control-label">Size</span>
+          <button type="button" id="btnZoomOut" class="btn btn-secondary btn-compact" title="Smaller text (−)">−</button>
+          <span class="zoom-value" id="zoomValue">100%</span>
+          <button type="button" id="btnZoomIn" class="btn btn-secondary btn-compact" title="Larger text (+)">+</button>
+        </div>
       </div>
 
       <div class="toolbar-right">
+        <button type="button" id="btnTheme" class="btn btn-secondary btn-compact" title="Theme: System / Day / Night" aria-label="Toggle theme">
+          <span id="themeIcon" aria-hidden="true">◐</span>
+          <span class="btn-label" id="themeLabel">Auto</span>
+        </button>
         <label class="page-control" for="pageInput">
           <span class="control-label">Page</span>
           <input type="number" id="pageInput" min="1" value="1" inputmode="numeric" />

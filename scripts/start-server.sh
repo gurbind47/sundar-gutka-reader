@@ -1,51 +1,80 @@
 #!/bin/bash
 # Starts Sundar Gutka reader and opens the browser.
-# Used by the Desktop app icon.
+# Works from Finder / AppleScript app (survives do-shell-script exit).
 
-set -euo pipefail
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 PORT="${SUNDAR_GUTKA_PORT:-8765}"
-# Resolve project root (parent of scripts/)
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+cd "$ROOT" || exit 1
 
-# Free the port if a previous instance is still running
-if command -v lsof >/dev/null 2>&1; then
-  OLD_PIDS="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true)"
-  if [[ -n "${OLD_PIDS}" ]]; then
-    # shellcheck disable=SC2086
-    kill $OLD_PIDS 2>/dev/null || true
-    sleep 0.3
-  fi
-fi
+LOG="$ROOT/.server.log"
+PIDFILE="$ROOT/.server.pid"
+URL="http://127.0.0.1:${PORT}/"
 
-# Prefer python3
-if command -v python3 >/dev/null 2>&1; then
-  PY=python3
-elif command -v python >/dev/null 2>&1; then
-  PY=python
+# Find Python
+if [[ -x /usr/bin/python3 ]]; then
+  PY=/usr/bin/python3
+elif command -v python3 >/dev/null 2>&1; then
+  PY="$(command -v python3)"
 else
-  osascript -e 'display alert "Sundar Gutka" message "Python 3 is required. Install it from python.org or with Homebrew." as critical' 2>/dev/null || true
+  /usr/bin/osascript -e 'display alert "Sundar Gutka" message "Python 3 is required. Install from python.org or run: brew install python" as critical' 2>/dev/null || true
   exit 1
 fi
 
-URL="http://127.0.0.1:${PORT}/"
-LOG="$ROOT/.server.log"
-PIDFILE="$ROOT/.server.pid"
+# Stop previous instance on this port (new process group safe)
+"$PY" - <<PY
+import os, signal, subprocess, sys
+port = int("${PORT}")
+root = r"""${ROOT}"""
+log = os.path.join(root, ".server.log")
+pidfile = os.path.join(root, ".server.pid")
 
-# Start server in background, log to file
-nohup "$PY" -m http.server "$PORT" --bind 127.0.0.1 >"$LOG" 2>&1 &
-echo $! >"$PIDFILE"
+# Kill anything listening on the port
+try:
+    out = subprocess.check_output(["lsof", f"-tiTCP:{port}", "-sTCP:LISTEN"], text=True).strip()
+    for pid in out.split():
+        try:
+            os.kill(int(pid), signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+except Exception:
+    pass
 
-# Wait until port accepts connections (max ~5s)
-for _ in $(seq 1 25); do
-  if curl -sf -o /dev/null "$URL"; then
+# Start server in a NEW SESSION so it survives when AppleScript's shell exits
+with open(log, "ab", buffering=0) as logf:
+    proc = subprocess.Popen(
+        [r"""${PY}""", "-m", "http.server", str(port), "--bind", "127.0.0.1"],
+        cwd=root,
+        stdout=logf,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+        close_fds=True,
+    )
+with open(pidfile, "w") as f:
+    f.write(str(proc.pid))
+print(proc.pid)
+PY
+
+# Wait until ready (max ~6s)
+READY=0
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+  if "$PY" -c "import urllib.request; urllib.request.urlopen('${URL}', timeout=0.4)" 2>/dev/null; then
+    READY=1
     break
   fi
   sleep 0.2
 done
 
-# Open default browser
-open "$URL"
+if [[ "$READY" -ne 1 ]]; then
+  /usr/bin/osascript -e 'display alert "Sundar Gutka" message "Server failed to start. Check .server.log in the sundar-gutka-reader folder." as critical' 2>/dev/null || true
+  exit 1
+fi
+
+# Open browser
+/usr/bin/open "$URL" || true
+
+# Non-blocking notification (best effort)
+/usr/bin/osascript -e 'display notification "Sundar Gutka is open in your browser." with title "Sundar Gutka"' 2>/dev/null || true
 
 exit 0
