@@ -73,7 +73,6 @@ const els = {
   metaThemeColor: document.getElementById("metaThemeColor"),
   btnMode: document.getElementById("btnMode"),
   modeLabel: document.getElementById("modeLabel"),
-  btnRotate: document.getElementById("btnRotate"),
   btnSearch: document.getElementById("btnSearch"),
   searchPanel: document.getElementById("searchPanel"),
   searchBackdrop: document.getElementById("searchBackdrop"),
@@ -93,7 +92,6 @@ const state = {
   zoom: 100,
   theme: "system",
   mode: "pdf", // pdf | text
-  rotate: false,
   playing: false,
   currentPage: 1,
   rafId: null,
@@ -129,7 +127,7 @@ function avgRenderedPageHeight() {
   }
   if (!count) {
     const w = getRenderWidth();
-    return state.rotate ? w * PAGE_ASPECT : w / PAGE_ASPECT;
+    return w / PAGE_ASPECT;
   }
   return sum / count;
 }
@@ -155,7 +153,6 @@ function loadPrefs() {
       state.theme = data.theme;
     }
     if (data.mode === "pdf" || data.mode === "text") state.mode = data.mode;
-    if (typeof data.rotate === "boolean") state.rotate = data.rotate;
   } catch (_) {
     /* ignore */
   }
@@ -171,7 +168,6 @@ function savePrefsImmediate() {
         zoom: state.zoom,
         theme: state.theme,
         mode: state.mode,
-        rotate: state.rotate,
       })
     );
   } catch (_) {
@@ -299,13 +295,7 @@ function updateModeUI() {
         ? "Switch to PDF page view (M)"
         : "Switch to reflow text view (M)";
   }
-  if (els.btnRotate) {
-    els.btnRotate.disabled = state.mode === "text";
-    els.btnRotate.setAttribute("aria-pressed", state.rotate ? "true" : "false");
-    els.btnRotate.classList.toggle("is-active", state.rotate);
-  }
   document.documentElement.setAttribute("data-mode", state.mode);
-  document.documentElement.setAttribute("data-rotate", state.rotate ? "1" : "0");
 }
 
 function updatePageUI(page) {
@@ -426,12 +416,11 @@ async function renderPage(index) {
   entry.rendering = true;
   try {
     const page = await state.pdf.getPage(entry.pageNum);
-    const rotation = state.rotate ? 90 : 0;
     const cssWidth = getRenderWidth();
-    const unscaled = page.getViewport({ scale: 1, rotation });
+    const unscaled = page.getViewport({ scale: 1 });
     const scale = cssWidth / unscaled.width;
     const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
-    const viewport = page.getViewport({ scale: scale * dpr, rotation });
+    const viewport = page.getViewport({ scale: scale * dpr });
 
     const canvas = entry.canvas;
     const ctx = canvas.getContext("2d", { alpha: false });
@@ -492,8 +481,7 @@ function invalidateAllPages() {
     const cssWidth = getRenderWidth();
     entry.wrap.style.width = cssWidth + "px";
     entry.wrap.style.maxWidth = cssWidth + "px";
-    const aspect = state.rotate ? 1 / PAGE_ASPECT : PAGE_ASPECT;
-    entry.wrap.style.aspectRatio = String(aspect);
+    entry.wrap.style.aspectRatio = String(PAGE_ASPECT);
   }
 }
 
@@ -571,17 +559,18 @@ function buildPlaceholders() {
   state.pageEls = [];
   const frag = document.createDocumentFragment();
   const cssWidth = getRenderWidth();
-  const aspect = state.rotate ? 1 / PAGE_ASPECT : PAGE_ASPECT;
   for (let i = 1; i <= state.numPages; i++) {
     const wrap = document.createElement("div");
     wrap.className = "page-wrap";
     wrap.dataset.page = String(i);
-    wrap.style.aspectRatio = String(aspect);
+    wrap.style.aspectRatio = String(PAGE_ASPECT);
     wrap.style.width = cssWidth + "px";
     wrap.style.maxWidth = cssWidth + "px";
     wrap.setAttribute("aria-label", "Page " + i);
 
     const canvas = document.createElement("canvas");
+    canvas.width = 0;
+    canvas.height = 0;
     wrap.appendChild(canvas);
 
     const badge = document.createElement("span");
@@ -667,6 +656,24 @@ function applyMode() {
   }
 }
 
+async function ensurePdfLoaded() {
+  if (state.pdf) return;
+  setStatus("Loading Sundar Gutka…");
+  const loadingTask = pdfjsLib.getDocument({
+    url: PDF_URL,
+    useSystemFonts: false,
+    disableFontFace: false,
+    standardFontDataUrl: new URL("../lib/standard_fonts/", import.meta.url).href,
+  });
+  state.pdf = await loadingTask.promise;
+  state.numPages = state.pdf.numPages;
+  els.pageTotal.textContent = "/ " + state.numPages;
+  els.pageInput.max = String(state.numPages);
+  els.pageInput.min = "1";
+  buildPlaceholders();
+  setStatus("");
+}
+
 async function setMode(mode) {
   if (mode !== "pdf" && mode !== "text") return;
   if (mode === state.mode) {
@@ -676,35 +683,30 @@ async function setMode(mode) {
   pause();
   const page = state.currentPage;
   state.mode = mode;
-  if (mode === "text" && !state.textPages) {
-    setStatus("Loading text…");
-    await loadTextIndex();
-    setStatus("");
+  try {
+    if (mode === "text" && !state.textPages) {
+      setStatus("Loading text…");
+      await loadTextIndex();
+      setStatus("");
+    }
+    if (mode === "pdf" && !state.pdf) {
+      await ensurePdfLoaded();
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus("Failed to switch mode. " + (err && err.message ? err.message : ""), true);
+    state.mode = mode === "pdf" ? "text" : "pdf";
   }
   applyMode();
   savePrefs();
   requestAnimationFrame(() => {
     goToPage(page);
-    if (mode === "pdf") scheduleVisibleRenders();
+    if (state.mode === "pdf") scheduleVisibleRenders();
   });
 }
 
 function toggleMode() {
   setMode(state.mode === "pdf" ? "text" : "pdf");
-}
-
-function toggleRotate() {
-  if (state.mode === "text") return;
-  pause();
-  state.rotate = !state.rotate;
-  updateModeUI();
-  savePrefs();
-  const page = state.currentPage;
-  invalidateAllPages();
-  requestAnimationFrame(() => {
-    goToPage(page);
-    scheduleVisibleRenders();
-  });
 }
 
 // ——— Navigation ———
@@ -934,12 +936,15 @@ function tick(ts) {
   const pxPerSec = pacedPxPerSec();
   state.scrollCarry += (pxPerSec * dt) / 1000;
 
-  if (state.scrollCarry >= 0.25) {
+  if (state.scrollCarry > 0) {
     state.ignoreScrollPause = true;
-    const maxScroll = els.viewer.scrollHeight - els.viewer.clientHeight;
-    const next = Math.min(maxScroll, els.viewer.scrollTop + state.scrollCarry);
+    const maxScroll = Math.max(0, els.viewer.scrollHeight - els.viewer.clientHeight);
+    const before = els.viewer.scrollTop;
+    const next = Math.min(maxScroll, before + state.scrollCarry);
     els.viewer.scrollTop = next;
-    state.scrollCarry = 0;
+    // Keep any sub-pixel remainder the engine could not apply
+    state.scrollCarry = Math.max(0, state.scrollCarry - (els.viewer.scrollTop - before));
+    if (state.scrollCarry < 1e-3) state.scrollCarry = 0;
 
     if (next >= maxScroll - 1) {
       pause();
@@ -964,6 +969,15 @@ function tick(ts) {
 
   state.rafId = requestAnimationFrame(tick);
 }
+
+// Debug handle for tests / console
+window.__sg = {
+  state,
+  pacedPxPerSec,
+  play,
+  pause,
+  getVisiblePage,
+};
 
 function play() {
   if (state.playing) return;
@@ -1058,24 +1072,9 @@ async function init() {
   }
 
   if (state.mode === "pdf") {
-    setStatus("Loading Sundar Gutka…");
     try {
-      const loadingTask = pdfjsLib.getDocument({
-        url: PDF_URL,
-        useSystemFonts: false,
-        disableFontFace: false,
-        standardFontDataUrl: new URL("../lib/standard_fonts/", import.meta.url).href,
-      });
-      state.pdf = await loadingTask.promise;
-      state.numPages = state.pdf.numPages;
-      els.pageTotal.textContent = "/ " + state.numPages;
-      els.pageInput.max = String(state.numPages);
-      els.pageInput.min = "1";
-
-      buildPlaceholders();
+      await ensurePdfLoaded();
       applyMode();
-      setStatus("");
-
       const startPage = Math.min(state.numPages, Math.max(1, state.currentPage));
       requestAnimationFrame(() => {
         goToPage(startPage);
@@ -1112,7 +1111,6 @@ if (els.btnZoomIn) els.btnZoomIn.addEventListener("click", zoomIn);
 if (els.btnZoomOut) els.btnZoomOut.addEventListener("click", zoomOut);
 if (els.btnTheme) els.btnTheme.addEventListener("click", cycleTheme);
 if (els.btnMode) els.btnMode.addEventListener("click", toggleMode);
-if (els.btnRotate) els.btnRotate.addEventListener("click", toggleRotate);
 
 function applyPageJump() {
   goToPage(els.pageInput.value);
@@ -1205,8 +1203,6 @@ document.addEventListener("keydown", (e) => {
     toggleSearch();
   } else if (e.key === "m" || e.key === "M") {
     toggleMode();
-  } else if (e.key === "r" || e.key === "R") {
-    toggleRotate();
   } else if (e.key === "+" || e.key === "=") {
     e.preventDefault();
     zoomIn();

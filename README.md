@@ -8,7 +8,6 @@ Sundar Gutka (Damdami Taksal) path reader for **laptop, tablet, and phone**.
 - **Banis** jump menu (26 banis)
 - **Search** across all pages (Unicode Gurmukhi text index)
 - **Text mode** — reflowable Gurmukhi for comfortable phone reading
-- **Rotate** — turn PDF pages tall for portrait phones
 - Deep links: `?page=124` or `?bani=rehras`
 - **Offline install** (Add to Home Screen / PWA)
 - **Desktop app** — double-click to open (Mac)
@@ -58,8 +57,7 @@ Keep the folder **`Desktop/sundar-gutka-reader`** on your Desktop (the app needs
 | **Size − / +** | Smaller / larger text (`-` / `+` keys) |
 | **Banis** | Jump to Japji, Rehras, Sukhmani… (`B`) |
 | **Search** | Find text across the gutka (`F`) |
-| **PDF / Text** | Page scan view or reflow text (`M`) |
-| **Rotate** | Tall PDF pages for portrait phones (`R`) |
+| **PDF / Text** | Page scan view or reflow text (`M`) — Text is best on phones |
 | **Auto / Day / Night** | Theme — Auto follows system (`T`) |
 | **Page + Go** | Jump to page number |
 
