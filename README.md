@@ -12,13 +12,19 @@ Sundar Gutka (Damdami Taksal) path reader for **laptop, tablet, and phone**.
 ## Open on Mac (desktop)
 
 **Option A — App icon (recommended)**  
-Double-click **`Sundar Gutka`** on your Desktop.
+Double-click **`Sundar Gutka`** on your Desktop.  
+Browser should open within 1–2 seconds (no stuck “Opening…” dialog).
 
-**Option B — if the app is blocked**  
-Double-click **`Sundar Gutka.command`** on your Desktop  
-(or right-click → Open the first time if macOS asks).
+**First time only (if macOS blocks it):**  
+Right-click the app → **Open** → **Open**.
+
+**Option B — Terminal launcher**  
+Double-click **`Sundar Gutka.command`** (window closes after launch).
 
 Browser opens at `http://127.0.0.1:8765/`.
+
+**Option C — always works in browser**  
+https://gurbind47.github.io/sundar-gutka-reader/
 
 Stop the server later:
 
