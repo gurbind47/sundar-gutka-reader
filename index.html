@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pa">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a1510" />
+  <meta name="description" content="Sundar Gutka (Damdami Taksal) — auto-scroll path reader for phone, tablet, and desktop." />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Sundar Gutka" />
+  <title>Sundar Gutka · Damdami Taksal</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="toolbar" id="toolbar" role="toolbar" aria-label="Reader controls">
+      <div class="toolbar-left">
+        <button type="button" id="btnPlay" class="btn btn-primary" aria-pressed="false" title="Play / Pause (Space)">
+          <span class="icon" id="playIcon" aria-hidden="true">▶</span>
+          <span class="btn-label" id="playLabel">Play</span>
+        </button>
+        <button type="button" id="btnBanis" class="btn btn-secondary" aria-expanded="false" aria-controls="banisDrawer" title="Banis menu (B)">
+          <span class="btn-label">Banis</span>
+        </button>
+      </div>
+
+      <div class="toolbar-center">
+        <label class="speed-control" for="speedSlider">
+          <span class="control-label">Speed</span>
+          <input
+            type="range"
+            id="speedSlider"
+            min="1"
+            max="10"
+            step="1"
+            value="3"
+            aria-valuemin="1"
+            aria-valuemax="10"
+            aria-valuenow="3"
+          />
+          <span class="speed-value" id="speedValue">3</span>
+        </label>
+      </div>
+
+      <div class="toolbar-right">
+        <label class="page-control" for="pageInput">
+          <span class="control-label">Page</span>
+          <input type="number" id="pageInput" min="1" value="1" inputmode="numeric" />
+          <span class="page-total" id="pageTotal">/ —</span>
+        </label>
+        <button type="button" id="btnGo" class="btn btn-secondary" title="Go to page">Go</button>
+      </div>
+    </header>
+
+    <main id="viewer" class="viewer" tabindex="0" aria-label="Sundar Gutka pages">
+      <div id="status" class="status" role="status">Loading Sundar Gutka…</div>
+      <div id="pages" class="pages"></div>
+    </main>
+  </div>
+
+  <!-- Banis drawer -->
+  <div id="banisBackdrop" class="banis-backdrop"></div>
+  <aside id="banisDrawer" class="banis-drawer" aria-hidden="true" aria-label="Banis table of contents">
+    <div class="banis-header">
+      <h2>Banis</h2>
+      <button type="button" id="btnCloseBanis" class="btn btn-secondary btn-icon" title="Close" aria-label="Close banis menu">✕</button>
+    </div>
+    <div id="banisList" class="banis-list" role="list"></div>
+  </aside>
+
+  <script src="lib/pdf.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
