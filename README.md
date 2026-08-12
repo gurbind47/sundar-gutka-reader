@@ -6,7 +6,7 @@ Sundar Gutka (Damdami Taksal) path reader for **laptop, tablet, and phone**.
 - **Text size** − / + (70%–200%)
 - **Day / Night / Auto** theme (Auto follows system)
 - **Banis** jump menu (26 banis)
-- **Search** across all pages (Unicode Gurmukhi text index)
+- Compact **mobile toolbar** (Play / Banis / Speed; More for Size, Theme, Page)
 - Deep links: `?page=124` or `?bani=rehras`
 - **Offline install** (Add to Home Screen / PWA)
 - **Desktop app** — double-click to open (Mac)
@@ -53,10 +53,10 @@ Keep the folder **`Desktop/sundar-gutka-reader`** on your Desktop (the app needs
 |--------|--------|
 | **Play / Pause** | Auto-scroll (Space) |
 | **Speed 1–10** | 1 = very slow path, 10 = faster |
-| **Size − / +** | Smaller / larger text (`-` / `+` keys) |
 | **Banis** | Jump to Japji, Rehras, Sukhmani… (`B`) |
-| **Search** | Find text across the gutka (`F`) |
-| **Auto / Day / Night** | Theme — Auto follows system (`T`) |
+| **More** (phone) | Size, Theme, Page jump |
+| **Size − / +** | Smaller / larger (`-` / `+` keys) |
+| **Auto / Day / Night** | Theme (`T`) |
 | **Page + Go** | Jump to page number |
 
 ## Speed guide
@@ -85,21 +85,11 @@ python3 -m http.server 8765 --bind 127.0.0.1
 
 Or use `scripts/start-server.sh` / `scripts/stop-server.sh`.
 
-### Rebuild the text index
-
-The search corpus is `data/text-index.json` (AnmolLipi → Unicode via [anvaad-js](https://github.com/KhalisFoundation/anvaad-js)).
-
-```bash
-pip install pymupdf
-npm i anvaad-js
-node scripts/extract-text.mjs
-```
-
 ## Stack
 
 - PDF.js **6.x** (ES modules, `lib/pdf.min.mjs`)
 - Vanilla JS reader (`js/app.js`)
-- Service worker: network-first app shell, cache-first PDF / libs / text index
+- Service worker: network-first app shell, cache-first PDF / libs
 
 ## Source
 

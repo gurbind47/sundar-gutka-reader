@@ -1,11 +1,10 @@
 /**
  * Sundar Gutka Auto-Scroll Reader
- * PDF.js 6 + path auto-scroll + banis + zoom + theme + search
+ * PDF.js 6 + path auto-scroll + banis + zoom + theme
  */
 import * as pdfjsLib from "../lib/pdf.min.mjs";
 
 const PDF_URL = "assets/sundar-gutka.pdf";
-const TEXT_INDEX_URL = "data/text-index.json";
 const STORAGE_KEY = "sundar-gutka-reader-v2";
 const PAGE_ASPECT = 2288 / 1425;
 const RENDER_BUFFER = 3;
@@ -70,21 +69,15 @@ const els = {
   themeIcon: document.getElementById("themeIcon"),
   themeLabel: document.getElementById("themeLabel"),
   metaThemeColor: document.getElementById("metaThemeColor"),
-  btnSearch: document.getElementById("btnSearch"),
-  searchPanel: document.getElementById("searchPanel"),
-  searchBackdrop: document.getElementById("searchBackdrop"),
-  btnCloseSearch: document.getElementById("btnCloseSearch"),
-  searchForm: document.getElementById("searchForm"),
-  searchInput: document.getElementById("searchInput"),
-  searchStatus: document.getElementById("searchStatus"),
-  searchResults: document.getElementById("searchResults"),
+  btnMore: document.getElementById("btnMore"),
+  toolbarExtra: document.getElementById("toolbarExtra"),
+  moreLabel: document.getElementById("moreLabel"),
 };
 
 const state = {
   pdf: null,
   numPages: 0,
   pageEls: [],
-  textPages: null, // string[] | null — for search only
   speed: 3,
   zoom: 100,
   theme: "system",
@@ -609,7 +602,7 @@ function buildBanisList() {
 
 function openBanis() {
   if (!els.banisDrawer) return;
-  closeSearch();
+  setMoreOpen(false);
   state.lastFocus = document.activeElement;
   els.banisDrawer.classList.add("open");
   els.banisDrawer.setAttribute("aria-hidden", "false");
@@ -644,130 +637,29 @@ function toggleBanis() {
   else openBanis();
 }
 
-// ——— Search ———
+// ——— More controls (compact mobile toolbar) ———
 
-async function loadTextIndex() {
-  if (state.textPages) return state.textPages;
-  const res = await fetch(TEXT_INDEX_URL);
-  if (!res.ok) throw new Error("Could not load text index");
-  const data = await res.json();
-  state.textPages = data.pages || [];
-  if (!state.numPages) state.numPages = state.textPages.length;
-  return state.textPages;
+function isWideLayout() {
+  return window.matchMedia("(min-width: 721px)").matches;
 }
 
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+function setMoreOpen(open) {
+  if (!els.toolbarExtra) return;
+  // Desktop always shows extras; mobile toggles
+  const show = isWideLayout() ? true : !!open;
+  els.toolbarExtra.hidden = !show;
+  els.toolbarExtra.classList.toggle("hidden", !show);
+  if (els.btnMore) {
+    els.btnMore.setAttribute("aria-expanded", show && !isWideLayout() ? "true" : "false");
+  }
+  if (els.moreLabel) els.moreLabel.textContent = !isWideLayout() && show ? "Less" : "More";
+  document.documentElement.setAttribute("data-more", show ? "1" : "0");
 }
 
-function snippetAround(text, query, radius) {
-  const idx = text.toLowerCase().indexOf(query.toLowerCase());
-  if (idx < 0) return text.slice(0, radius * 2);
-  const start = Math.max(0, idx - radius);
-  const end = Math.min(text.length, idx + query.length + radius);
-  let snip = text.slice(start, end).replace(/\s+/g, " ");
-  if (start > 0) snip = "…" + snip;
-  if (end < text.length) snip = snip + "…";
-  const re = new RegExp("(" + query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "ig");
-  return escapeHtml(snip).replace(re, "<mark>$1</mark>");
-}
-
-async function runSearch(query) {
-  const q = (query || "").trim();
-  if (!els.searchResults) return;
-  els.searchResults.innerHTML = "";
-  if (q.length < 2) {
-    els.searchStatus.textContent = "Type at least 2 characters.";
-    return;
-  }
-  els.searchStatus.textContent = "Searching…";
-  try {
-    await loadTextIndex();
-  } catch (err) {
-    els.searchStatus.textContent = "Search unavailable (text index missing).";
-    return;
-  }
-
-  const ql = q.toLowerCase();
-  const hits = [];
-  for (let i = 0; i < state.textPages.length; i++) {
-    const t = state.textPages[i] || "";
-    if (t.toLowerCase().includes(ql)) {
-      hits.push({ page: i + 1, text: t });
-      if (hits.length >= 80) break;
-    }
-  }
-
-  if (!hits.length) {
-    els.searchStatus.textContent = "No matches for “" + q + "”.";
-    return;
-  }
-
-  els.searchStatus.textContent =
-    hits.length + (hits.length >= 80 ? "+" : "") + " match" + (hits.length === 1 ? "" : "es");
-
-  const frag = document.createDocumentFragment();
-  hits.forEach((hit) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "search-hit";
-    btn.innerHTML =
-      '<span class="search-hit-page">p. ' +
-      hit.page +
-      "</span>" +
-      '<span class="search-hit-snip">' +
-      snippetAround(hit.text, q, 42) +
-      "</span>";
-    btn.addEventListener("click", () => {
-      closeSearch();
-      pause();
-      goToPage(hit.page);
-    });
-    frag.appendChild(btn);
-  });
-  els.searchResults.appendChild(frag);
-}
-
-function openSearch() {
-  closeBanis();
-  state.lastFocus = document.activeElement;
-  els.searchPanel.classList.add("open");
-  els.searchPanel.setAttribute("aria-hidden", "false");
-  els.searchPanel.removeAttribute("inert");
-  if (els.searchBackdrop) {
-    els.searchBackdrop.hidden = false;
-    els.searchBackdrop.classList.add("open");
-  }
-  if (els.btnSearch) els.btnSearch.setAttribute("aria-expanded", "true");
-  els.searchInput?.focus();
-  els.searchInput?.select();
-  loadTextIndex().catch(() => {});
-}
-
-function closeSearch() {
-  if (!els.searchPanel) return;
-  els.searchPanel.classList.remove("open");
-  els.searchPanel.setAttribute("aria-hidden", "true");
-  els.searchPanel.setAttribute("inert", "");
-  if (els.searchBackdrop) {
-    els.searchBackdrop.classList.remove("open");
-    els.searchBackdrop.hidden = true;
-  }
-  if (els.btnSearch) els.btnSearch.setAttribute("aria-expanded", "false");
-  if (state.lastFocus && typeof state.lastFocus.focus === "function") {
-    state.lastFocus.focus();
-  } else {
-    els.btnSearch?.focus();
-  }
-}
-
-function toggleSearch() {
-  if (els.searchPanel && els.searchPanel.classList.contains("open")) closeSearch();
-  else openSearch();
+function toggleMore() {
+  if (isWideLayout()) return;
+  const open = els.toolbarExtra && els.toolbarExtra.hidden;
+  setMoreOpen(!!open);
 }
 
 // ——— Auto-scroll ———
@@ -862,6 +754,7 @@ function togglePlay() {
 function onResize() {
   window.clearTimeout(state.resizeTimer);
   state.resizeTimer = window.setTimeout(() => {
+    setMoreOpen(isWideLayout());
     const page = state.currentPage;
     invalidateAllPages();
     goToPage(page);
@@ -880,6 +773,7 @@ async function init() {
   updateSpeedUI();
   updateZoomUI();
   updatePlayButton();
+  setMoreOpen(false);
   els.pageInput.value = String(state.currentPage);
   buildBanisList();
 
@@ -887,9 +781,6 @@ async function init() {
     "../lib/pdf.worker.min.mjs",
     import.meta.url
   ).href;
-
-  // Prefetch text index in background (search)
-  loadTextIndex().catch(() => {});
 
   try {
     await ensurePdfLoaded();
@@ -909,7 +800,7 @@ async function init() {
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker
-      .register("sw.js?v=6")
+      .register("sw.js?v=7")
       .then(function (reg) {
         reg.update().catch(function () {});
         // If a new worker is waiting, activate it immediately
@@ -968,15 +859,8 @@ if (els.btnBanis) els.btnBanis.addEventListener("click", toggleBanis);
 if (els.btnCloseBanis) els.btnCloseBanis.addEventListener("click", closeBanis);
 if (els.banisBackdrop) els.banisBackdrop.addEventListener("click", closeBanis);
 
-if (els.btnSearch) els.btnSearch.addEventListener("click", toggleSearch);
-if (els.btnCloseSearch) els.btnCloseSearch.addEventListener("click", closeSearch);
-if (els.searchBackdrop) els.searchBackdrop.addEventListener("click", closeSearch);
-if (els.searchForm) {
-  els.searchForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    runSearch(els.searchInput.value);
-  });
-}
+
+if (els.btnMore) els.btnMore.addEventListener("click", toggleMore);
 
 els.viewer.addEventListener("scroll", onScroll, { passive: true });
 els.viewer.addEventListener("wheel", onUserScrollIntent, { passive: true });
@@ -1010,17 +894,17 @@ try {
 }
 
 document.addEventListener("keydown", (e) => {
-  if (e.target === els.pageInput || e.target === els.searchInput || e.target.tagName === "INPUT" || e.target.tagName === "SELECT") {
+  if (e.target === els.pageInput || e.target.tagName === "INPUT" || e.target.tagName === "SELECT") {
     if (e.key === "Escape") {
       closeBanis();
-      closeSearch();
+      setMoreOpen(false);
     }
     return;
   }
 
   if (e.key === "Escape") {
     closeBanis();
-    closeSearch();
+    setMoreOpen(false);
     return;
   }
   if (e.code === "Space") {
@@ -1038,9 +922,6 @@ document.addEventListener("keydown", (e) => {
     savePrefs();
   } else if (e.key === "b" || e.key === "B") {
     toggleBanis();
-  } else if (e.key === "f" || e.key === "F" || ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K"))) {
-    e.preventDefault();
-    toggleSearch();
   } else if (e.key === "+" || e.key === "=") {
     e.preventDefault();
     zoomIn();

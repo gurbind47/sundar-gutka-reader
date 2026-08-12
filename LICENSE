@@ -25,7 +25,6 @@ SOFTWARE.
 Third-party notices:
 
 - PDF.js (Mozilla Foundation) — Apache License 2.0 — see lib/PDFJS-LICENSE
-- Text index conversion uses anvaad-js (Khalis Foundation, MIT) at build time
 - The bundled Sundar Gutka PDF (Damdami Taksal) remains the property of its
   respective rights holders; cover design credit appears on page 1 of the PDF.
   This repository redistributes it only for personal path / seva use.

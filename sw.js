@@ -1,8 +1,8 @@
 /* Sundar Gutka offline service worker
  * - App shell (HTML/CSS/JS): network-first, fall back to cache
- * - Heavy assets (PDF, PDF.js, text index, icons): cache-first
+ * - Heavy assets (PDF, PDF.js, icons): cache-first
  */
-const CACHE = "sundar-gutka-v6";
+const CACHE = "sundar-gutka-v7";
 
 const PRECACHE = [
   "./",
@@ -12,7 +12,6 @@ const PRECACHE = [
   "./lib/pdf.min.mjs",
   "./lib/pdf.worker.min.mjs",
   "./assets/sundar-gutka.pdf",
-  "./data/text-index.json",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
@@ -20,7 +19,7 @@ const PRECACHE = [
 ];
 
 const SHELL_RE = /\/(index\.html)?$|\/css\/|\/js\/|manifest\.webmanifest$/;
-const HEAVY_RE = /\/(assets|lib|data|icons)\//;
+const HEAVY_RE = /\/(assets|lib|icons)\//;
 
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {

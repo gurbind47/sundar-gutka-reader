@@ -13,10 +13,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gurmukhi:wght@400;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=6" />
+  <link rel="stylesheet" href="css/styles.css?v=7" />
   <script>
     /* Apply theme before paint to avoid flash */
     (function () {
@@ -35,12 +32,11 @@
         if (pref === "system" && window.matchMedia("(prefers-color-scheme: light)").matches) night = false;
         document.documentElement.setAttribute("data-resolved", night ? "night" : "day");
       } catch (e) {}
-      /* Drop stale offline caches from older builds */
       try {
         if ("caches" in window) {
           caches.keys().then(function (keys) {
             keys.forEach(function (k) {
-              if (k.indexOf("sundar-gutka-") === 0 && k !== "sundar-gutka-v6") {
+              if (k.indexOf("sundar-gutka-") === 0 && k !== "sundar-gutka-v7") {
                 caches.delete(k);
               }
             });
@@ -53,20 +49,15 @@
 <body>
   <div id="app">
     <header class="toolbar" id="toolbar" role="toolbar" aria-label="Reader controls">
-      <div class="toolbar-left">
+      <div class="toolbar-main">
         <button type="button" id="btnPlay" class="btn btn-primary" aria-pressed="false" title="Play / Pause (Space)">
           <span class="icon" id="playIcon" aria-hidden="true">▶</span>
           <span class="btn-label" id="playLabel">Play</span>
         </button>
         <button type="button" id="btnBanis" class="btn btn-secondary" aria-expanded="false" aria-controls="banisDrawer" title="Banis menu (B)">
-          <span class="btn-label">Banis</span>
+          <span class="btn-label">Bani</span>
         </button>
-        <button type="button" id="btnSearch" class="btn btn-secondary" aria-expanded="false" aria-controls="searchPanel" title="Search (F)">
-          <span class="btn-label">Search</span>
-        </button>
-      </div>
 
-      <div class="toolbar-center">
         <label class="speed-control" for="speedSlider">
           <span class="control-label">Speed</span>
           <input
@@ -83,19 +74,24 @@
           <span class="speed-value" id="speedValue">3</span>
         </label>
 
+        <button type="button" id="btnMore" class="btn btn-secondary btn-compact" aria-expanded="false" aria-controls="toolbarExtra" title="More controls">
+          <span class="btn-label" id="moreLabel">More</span>
+        </button>
+      </div>
+
+      <div class="toolbar-extra" id="toolbarExtra" hidden>
         <div class="zoom-control" role="group" aria-label="Text size">
           <span class="control-label">Size</span>
           <button type="button" id="btnZoomOut" class="btn btn-secondary btn-compact" title="Smaller text (−)">−</button>
           <span class="zoom-value" id="zoomValue">100%</span>
           <button type="button" id="btnZoomIn" class="btn btn-secondary btn-compact" title="Larger text (+)">+</button>
         </div>
-      </div>
 
-      <div class="toolbar-right">
         <button type="button" id="btnTheme" class="btn btn-secondary btn-compact" title="Theme: System / Day / Night" aria-label="Toggle theme">
           <span id="themeIcon" aria-hidden="true">◐</span>
           <span class="btn-label" id="themeLabel">Auto</span>
         </button>
+
         <label class="page-control" for="pageInput">
           <span class="control-label">Page</span>
           <input type="number" id="pageInput" min="1" value="1" inputmode="numeric" />
@@ -121,24 +117,6 @@
     <div id="banisList" class="banis-list" role="list"></div>
   </aside>
 
-  <!-- Search panel -->
-  <div id="searchBackdrop" class="search-backdrop" hidden></div>
-  <section id="searchPanel" class="search-panel" aria-hidden="true" aria-label="Search" inert>
-    <div class="search-header">
-      <h2>Search</h2>
-      <button type="button" id="btnCloseSearch" class="btn btn-secondary btn-icon" title="Close" aria-label="Close search">✕</button>
-    </div>
-    <form id="searchForm" class="search-form" autocomplete="off">
-      <label class="search-input-wrap" for="searchInput">
-        <span class="visually-hidden">Search Gurbani</span>
-        <input type="search" id="searchInput" placeholder="Search Gurmukhi or English letters…" enterkeyhint="search" />
-      </label>
-      <button type="submit" class="btn btn-primary" id="btnDoSearch">Find</button>
-    </form>
-    <p id="searchStatus" class="search-status" role="status"></p>
-    <div id="searchResults" class="search-results" role="list"></div>
-  </section>
-
-  <script type="module" src="js/app.js?v=6"></script>
+  <script type="module" src="js/app.js?v=7"></script>
 </body>
 </html>
