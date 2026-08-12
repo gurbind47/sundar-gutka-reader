@@ -799,32 +799,46 @@ async function init() {
   }
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker
-      .register("sw.js?v=7")
-      .then(function (reg) {
-        reg.update().catch(function () {});
-        // If a new worker is waiting, activate it immediately
-        if (reg.waiting) {
-          reg.waiting.postMessage({ type: "SKIP_WAITING" });
-        }
-        reg.addEventListener("updatefound", function () {
-          const nw = reg.installing;
-          if (!nw) return;
-          nw.addEventListener("statechange", function () {
-            if (nw.state === "installed" && navigator.serviceWorker.controller) {
-              nw.postMessage({ type: "SKIP_WAITING" });
-            }
+    // Break older builds that reloaded on every controllerchange (page blink loop).
+    const SW_FIX = "sg-blink-fix-v8";
+    try {
+      if (!sessionStorage.getItem(SW_FIX)) {
+        sessionStorage.setItem(SW_FIX, "1");
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          var hadWorker = regs.length > 0 || !!navigator.serviceWorker.controller;
+          var clear = Promise.all(
+            regs.map(function (r) {
+              return r.unregister();
+            })
+          ).then(function () {
+            if (!("caches" in window)) return;
+            return caches.keys().then(function (keys) {
+              return Promise.all(
+                keys.map(function (k) {
+                  return caches.delete(k);
+                })
+              );
+            });
           });
+          return clear.then(function () {
+            if (hadWorker) {
+              window.location.reload();
+              return;
+            }
+            return navigator.serviceWorker.register("sw.js");
+          });
+        }).catch(function (err) {
+          console.warn("SW recovery failed", err);
+          navigator.serviceWorker.register("sw.js").catch(function () {});
         });
-      })
-      .catch(function (err) {
-        console.warn("SW register failed", err);
-      });
-    navigator.serviceWorker.addEventListener("controllerchange", function () {
-      // Reload once when the new SW takes control
-      if (window.__sgReloadedForSw) return;
-      window.__sgReloadedForSw = true;
-      window.location.reload();
+        return;
+      }
+    } catch (_) {
+      /* ignore */
+    }
+
+    navigator.serviceWorker.register("sw.js").catch(function (err) {
+      console.warn("SW register failed", err);
     });
   }
 }

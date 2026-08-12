@@ -13,7 +13,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="css/styles.css?v=7" />
+  <link rel="stylesheet" href="css/styles.css?v=8" />
   <script>
     /* Apply theme before paint to avoid flash */
     (function () {
@@ -32,17 +32,6 @@
         if (pref === "system" && window.matchMedia("(prefers-color-scheme: light)").matches) night = false;
         document.documentElement.setAttribute("data-resolved", night ? "night" : "day");
       } catch (e) {}
-      try {
-        if ("caches" in window) {
-          caches.keys().then(function (keys) {
-            keys.forEach(function (k) {
-              if (k.indexOf("sundar-gutka-") === 0 && k !== "sundar-gutka-v7") {
-                caches.delete(k);
-              }
-            });
-          });
-        }
-      } catch (e2) {}
     })();
   </script>
 </head>
@@ -117,6 +106,6 @@
     <div id="banisList" class="banis-list" role="list"></div>
   </aside>
 
-  <script type="module" src="js/app.js?v=7"></script>
+  <script type="module" src="js/app.js?v=8"></script>
 </body>
 </html>
