@@ -93,6 +93,7 @@ const state = {
   zoomTimer: null,
   saveTimer: null,
   lastFocus: null,
+  pinch: null,
 };
 
 function speedToPxPerSec(level) {
@@ -367,24 +368,17 @@ function sizePageWrap(wrap, canvas, renderWidth, renderHeight, aspect) {
   const cssWidth = renderWidth != null ? renderWidth : getRenderWidth();
   const cssHeight = renderHeight != null ? renderHeight : Math.round(cssWidth / PAGE_ASPECT);
   const ratio = aspect || String(PAGE_ASPECT);
-  const layoutWidth = isWideLayout() ? cssWidth : Math.min(cssWidth, getFitWidth());
-  const crop = !isWideLayout() && cssWidth > layoutWidth;
 
-  wrap.style.width = layoutWidth + "px";
-  wrap.style.maxWidth = isWideLayout() ? cssWidth + "px" : "100%";
-
-  if (crop) {
-    wrap.style.height = cssHeight + "px";
-    wrap.style.aspectRatio = "auto";
-  } else {
-    wrap.style.height = "";
-    wrap.style.aspectRatio = ratio;
-  }
+  // Full page always present: zoom enlarges width; viewer pans/scrolls inside the app frame.
+  wrap.style.width = cssWidth + "px";
+  wrap.style.maxWidth = cssWidth + "px";
+  wrap.style.height = "";
+  wrap.style.aspectRatio = ratio;
 
   if (canvas) {
     canvas.style.width = cssWidth + "px";
     canvas.style.height = cssHeight + "px";
-    canvas.style.marginLeft = crop ? Math.round((layoutWidth - cssWidth) / 2) + "px" : "0px";
+    canvas.style.marginLeft = "0px";
   }
 }
 
@@ -488,18 +482,7 @@ function scheduleVisibleRenders() {
 
 function setZoom(nextZoom) {
   let z = nextZoom;
-  if (ZOOM_STEPS.indexOf(z) === -1) {
-    let best = ZOOM_STEPS[0];
-    let bestD = Infinity;
-    for (let i = 0; i < ZOOM_STEPS.length; i++) {
-      const d = Math.abs(ZOOM_STEPS[i] - z);
-      if (d < bestD) {
-        bestD = d;
-        best = ZOOM_STEPS[i];
-      }
-    }
-    z = best;
-  }
+  if (ZOOM_STEPS.indexOf(z) === -1) z = zoomStepNearest(z);
   z = Math.max(ZOOM_STEPS[0], Math.min(ZOOM_STEPS[ZOOM_STEPS.length - 1], z));
   if (z === state.zoom) {
     updateZoomUI();
@@ -515,8 +498,20 @@ function setZoom(nextZoom) {
   state.zoomTimer = window.setTimeout(() => {
     invalidateAllPages();
     goToPage(pageBefore);
+    centerViewerHorizontally();
     scheduleVisibleRenders();
   }, 80);
+}
+
+function centerViewerHorizontally() {
+  const maxX = Math.max(0, els.viewer.scrollWidth - els.viewer.clientWidth);
+  if (maxX <= 0) {
+    els.viewer.scrollLeft = 0;
+    return;
+  }
+  withProgrammaticScroll(() => {
+    els.viewer.scrollLeft = Math.round(maxX / 2);
+  });
 }
 
 function zoomIn() {
@@ -527,6 +522,54 @@ function zoomIn() {
 function zoomOut() {
   const i = ZOOM_STEPS.indexOf(state.zoom);
   if (i > 0) setZoom(ZOOM_STEPS[i - 1]);
+}
+
+function touchDistance(a, b) {
+  const dx = a.clientX - b.clientX;
+  const dy = a.clientY - b.clientY;
+  return Math.hypot(dx, dy);
+}
+
+function zoomStepNearest(z) {
+  let best = ZOOM_STEPS[0];
+  let bestD = Infinity;
+  for (let i = 0; i < ZOOM_STEPS.length; i++) {
+    const d = Math.abs(ZOOM_STEPS[i] - z);
+    if (d < bestD) {
+      bestD = d;
+      best = ZOOM_STEPS[i];
+    }
+  }
+  return best;
+}
+
+function onPinchStart(e) {
+  if (e.touches.length !== 2) return;
+  if (state.playing) pause();
+  state.pinch = {
+    startDist: touchDistance(e.touches[0], e.touches[1]),
+    startZoom: state.zoom,
+    lastApplied: state.zoom,
+  };
+}
+
+function onPinchMove(e) {
+  if (!state.pinch || e.touches.length !== 2) return;
+  e.preventDefault();
+  const dist = touchDistance(e.touches[0], e.touches[1]);
+  if (!state.pinch.startDist) return;
+  const ratio = dist / state.pinch.startDist;
+  const raw = state.pinch.startZoom * ratio;
+  const next = zoomStepNearest(raw);
+  if (next !== state.pinch.lastApplied) {
+    state.pinch.lastApplied = next;
+    setZoom(next);
+  }
+}
+
+function onPinchEnd(e) {
+  if (!state.pinch) return;
+  if (e.touches.length < 2) state.pinch = null;
 }
 
 function buildPlaceholders() {
@@ -826,7 +869,7 @@ async function init() {
 
   if ("serviceWorker" in navigator) {
     // Break older builds that reloaded on every controllerchange (page blink loop).
-    const SW_FIX = "sg-blink-fix-v8";
+    const SW_FIX = "sg-blink-fix-v9";
     try {
       if (!sessionStorage.getItem(SW_FIX)) {
         sessionStorage.setItem(SW_FIX, "1");
@@ -906,12 +949,19 @@ els.viewer.addEventListener("scroll", onScroll, { passive: true });
 els.viewer.addEventListener("wheel", onUserScrollIntent, { passive: true });
 els.viewer.addEventListener(
   "touchstart",
-  () => {
+  (e) => {
+    if (e.touches && e.touches.length >= 2) {
+      onPinchStart(e);
+      return;
+    }
     if (state.ignoreScrollPause) return;
     if (state.playing) pause();
   },
   { passive: true }
 );
+els.viewer.addEventListener("touchmove", onPinchMove, { passive: false });
+els.viewer.addEventListener("touchend", onPinchEnd, { passive: true });
+els.viewer.addEventListener("touchcancel", onPinchEnd, { passive: true });
 
 els.viewer.addEventListener("click", (e) => {
   if (e.target.closest(".page-wrap") || e.target === els.viewer || e.target === els.pages) {
