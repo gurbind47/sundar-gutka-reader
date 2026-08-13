@@ -391,6 +391,8 @@ html[data-resolved="day"] .page-badge {
 
   .viewer {
     order: 1;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .btn {

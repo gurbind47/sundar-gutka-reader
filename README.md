@@ -3,7 +3,7 @@
 Sundar Gutka (Damdami Taksal) path reader for **laptop, tablet, and phone**.
 
 - Auto-scroll speed **1–10** (pace scales with page size so speed 3 feels similar on phone and desktop)
-- **Text size** − / + (70%–200%)
+- **Text size** − / + (70%–200%; on phone, 100%+ still enlarges text but pages stay on screen)
 - **Day / Night / Auto** theme (Auto follows system)
 - **Banis** jump menu (26 banis)
 - Compact **mobile toolbar** (Play / Banis / Speed; More for Size, Theme, Page)
