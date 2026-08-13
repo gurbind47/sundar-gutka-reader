@@ -351,11 +351,41 @@ function withProgrammaticScroll(fn) {
 
 // ——— Render / zoom ———
 
+function getFitWidth() {
+  const pad = isWideLayout() ? 16 : 8;
+  const vw = els.viewer.clientWidth || window.innerWidth;
+  const minW = isWideLayout() ? 280 : 1;
+  return Math.max(minW, vw - pad);
+}
+
 function getRenderWidth() {
-  const pad = 16;
-  const base = Math.max(280, (els.viewer.clientWidth || window.innerWidth) - pad);
-  const w = Math.round(base * (state.zoom / 100));
+  const w = Math.round(getFitWidth() * (state.zoom / 100));
   return Math.max(200, Math.min(w, 2000));
+}
+
+function sizePageWrap(wrap, canvas, renderWidth, renderHeight, aspect) {
+  const cssWidth = renderWidth != null ? renderWidth : getRenderWidth();
+  const cssHeight = renderHeight != null ? renderHeight : Math.round(cssWidth / PAGE_ASPECT);
+  const ratio = aspect || String(PAGE_ASPECT);
+  const layoutWidth = isWideLayout() ? cssWidth : Math.min(cssWidth, getFitWidth());
+  const crop = !isWideLayout() && cssWidth > layoutWidth;
+
+  wrap.style.width = layoutWidth + "px";
+  wrap.style.maxWidth = isWideLayout() ? cssWidth + "px" : "100%";
+
+  if (crop) {
+    wrap.style.height = cssHeight + "px";
+    wrap.style.aspectRatio = "auto";
+  } else {
+    wrap.style.height = "";
+    wrap.style.aspectRatio = ratio;
+  }
+
+  if (canvas) {
+    canvas.style.width = cssWidth + "px";
+    canvas.style.height = cssHeight + "px";
+    canvas.style.marginLeft = crop ? Math.round((layoutWidth - cssWidth) / 2) + "px" : "0px";
+  }
 }
 
 async function renderPage(index) {
@@ -378,11 +408,13 @@ async function renderPage(index) {
     canvas.width = Math.floor(viewport.width);
     canvas.height = Math.floor(viewport.height);
     const cssHeight = Math.floor(unscaled.height * scale);
-    canvas.style.width = cssWidth + "px";
-    canvas.style.height = cssHeight + "px";
-    entry.wrap.style.width = cssWidth + "px";
-    entry.wrap.style.maxWidth = cssWidth + "px";
-    entry.wrap.style.aspectRatio = `${unscaled.width} / ${unscaled.height}`;
+    sizePageWrap(
+      entry.wrap,
+      canvas,
+      cssWidth,
+      cssHeight,
+      `${unscaled.width} / ${unscaled.height}`
+    );
 
     const renderTask = page.render({
       canvasContext: ctx,
@@ -429,10 +461,7 @@ function clearCanvas(entry) {
 function invalidateAllPages() {
   for (const entry of state.pageEls) {
     if (entry.rendered || entry.rendering) clearCanvas(entry);
-    const cssWidth = getRenderWidth();
-    entry.wrap.style.width = cssWidth + "px";
-    entry.wrap.style.maxWidth = cssWidth + "px";
-    entry.wrap.style.aspectRatio = String(PAGE_ASPECT);
+    sizePageWrap(entry.wrap, entry.canvas);
   }
 }
 
@@ -504,19 +533,16 @@ function buildPlaceholders() {
   els.pages.innerHTML = "";
   state.pageEls = [];
   const frag = document.createDocumentFragment();
-  const cssWidth = getRenderWidth();
   for (let i = 1; i <= state.numPages; i++) {
     const wrap = document.createElement("div");
     wrap.className = "page-wrap";
     wrap.dataset.page = String(i);
-    wrap.style.aspectRatio = String(PAGE_ASPECT);
-    wrap.style.width = cssWidth + "px";
-    wrap.style.maxWidth = cssWidth + "px";
     wrap.setAttribute("aria-label", "Page " + i);
 
     const canvas = document.createElement("canvas");
     canvas.width = 0;
     canvas.height = 0;
+    sizePageWrap(wrap, canvas);
     wrap.appendChild(canvas);
 
     const badge = document.createElement("span");
