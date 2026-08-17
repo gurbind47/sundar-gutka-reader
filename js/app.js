@@ -870,7 +870,7 @@ async function init() {
 
   if ("serviceWorker" in navigator) {
     // Break older builds that reloaded on every controllerchange (page blink loop).
-    const SW_FIX = "sg-blink-fix-v9";
+    const SW_FIX = "sg-blink-fix-v10";
     try {
       if (!sessionStorage.getItem(SW_FIX)) {
         sessionStorage.setItem(SW_FIX, "1");
