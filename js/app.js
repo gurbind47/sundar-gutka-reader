@@ -13,8 +13,8 @@ const ZOOM_STEPS = [70, 80, 90, 100, 110, 125, 150, 175, 200];
 const THEME_CYCLE = ["system", "day", "night"];
 /** Reference page height (px) used when calibrating speed levels. */
 const REF_PAGE_HEIGHT = 420;
-/** Base px/sec at REF_PAGE_HEIGHT for speeds 1–10. */
-const SPEED_TABLE = [0, 5, 8, 12, 17, 24, 33, 44, 57, 72, 90];
+/** Base px/sec at REF_PAGE_HEIGHT for speeds 1–5 (within former 1–2 pace). */
+const SPEED_TABLE = [0, 5, 5.75, 6.5, 7.25, 8];
 
 const BANIS = [
   { name: "Japji Sahib", slug: "japji", page: 11 },
@@ -97,7 +97,7 @@ const state = {
 };
 
 function speedToPxPerSec(level) {
-  const n = Math.min(10, Math.max(1, Number(level) || 1));
+  const n = Math.min(5, Math.max(1, Number(level) || 1));
   return SPEED_TABLE[n];
 }
 
@@ -131,7 +131,8 @@ function loadPrefs() {
     const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("sundar-gutka-reader-v1");
     if (!raw) return;
     const data = JSON.parse(raw);
-    if (data.speed >= 1 && data.speed <= 10) state.speed = data.speed;
+    if (data.speed >= 1 && data.speed <= 5) state.speed = data.speed;
+    else if (data.speed > 5) state.speed = 5;
     if (data.page >= 1) state.currentPage = data.page;
     if (ZOOM_STEPS.indexOf(data.zoom) !== -1) state.zoom = data.zoom;
     if (data.theme === "day" || data.theme === "night" || data.theme === "system") {
@@ -1002,7 +1003,7 @@ document.addEventListener("keydown", (e) => {
     togglePlay();
   } else if (e.key === "ArrowRight" || e.key === "ArrowUp") {
     e.preventDefault();
-    state.speed = Math.min(10, state.speed + 1);
+    state.speed = Math.min(5, state.speed + 1);
     updateSpeedUI();
     savePrefs();
   } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
