@@ -2,7 +2,7 @@
 
 Sundar Gutka (Damdami Taksal) path reader for **laptop, tablet, and phone**.
 
-- Auto-scroll speed **1–10** (pace scales with page size so speed 3 feels similar on phone and desktop)
+- Auto-scroll speed **1–5** (pace scales with page size so speed 3 feels similar on phone and desktop; range matches the former very-slow 1–2 band with finer steps)
 - **Text size** − / + (70%–200%; on phone, pinch or Size enlarges pages — pan inside the screen to read; no edge crop)
 - **Day / Night / Auto** theme (Auto follows system)
 - **Banis** jump menu (26 banis)
@@ -52,7 +52,7 @@ Keep the folder **`Desktop/sundar-gutka-reader`** on your Desktop (the app needs
 | Control | Action |
 |--------|--------|
 | **Play / Pause** | Auto-scroll (Space) |
-| **Speed 1–10** | 1 = very slow path, 10 = faster |
+| **Speed 1–5** | 1 = slowest path, 5 = fastest within the slow band |
 | **Banis** | Jump to Japji, Rehras, Sukhmani… (`B`) |
 | **More** (phone) | Size, Theme, Page jump |
 | **Size − / +** | Smaller / larger (`-` / `+` keys; pinch on phone) |
@@ -61,12 +61,13 @@ Keep the folder **`Desktop/sundar-gutka-reader`** on your Desktop (the app needs
 
 ## Speed guide
 
+Levels **1–5** stay within the former very-slow (old 1–2) pace, with finer steps:
+
 | Level | Feel |
 |-------|------|
-| 1–2 | Very slow path |
-| 3–4 | Comfortable default |
-| 5–7 | Medium |
-| 8–10 | Quick review |
+| 1 | Slowest path |
+| 2–3 | Comfortable default |
+| 4–5 | Slightly faster within the slow band |
 
 ## Deep links
 

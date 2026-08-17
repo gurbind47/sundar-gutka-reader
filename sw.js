@@ -5,7 +5,7 @@
  * Intentionally does NOT force clients to reload. Aggressive skipWaiting +
  * page reload caused a blink/reload loop on some phones.
  */
-const CACHE = "sundar-gutka-v9";
+const CACHE = "sundar-gutka-v10";
 
 const PRECACHE = [
   "./",
