@@ -31,6 +31,8 @@ const SWIPE_FLICK_MIN_FRACTION = 0.06;
 const TAP_MAX_MOVE = 10;
 const TAP_MAX_MS = 350;
 const PAGE_TURN_MS = 220;
+/** Ignore page taps briefly after the toolbar appears / disappears under the finger. */
+const CONTROLS_TOGGLE_GUARD_MS = 400;
 
 const BANIS = [
   { name: "Japji Sahib", slug: "japji", page: 11 },
@@ -134,6 +136,8 @@ const state = {
   pageSize: { w: 1425, h: 2288 },
   /** Elapsed ms on the current page while auto-turning in Book / Kindle modes. */
   turnElapsed: 0,
+  /** performance.now() of the last controls show / hide (tap guard). */
+  controlsToggledAt: -Infinity,
 };
 
 /** One-page-at-a-time viewer shared by Book and Kindle modes. */
@@ -1123,6 +1127,9 @@ function onPagerPointerCancel(e) {
 }
 
 function handlePagerTap(clientY) {
+  // The layout just shifted under the pointer (toolbar shown / hidden): a bounced or
+  // doubled tap must not turn the page or undo the toggle.
+  if (performance.now() - state.controlsToggledAt < CONTROLS_TOGGLE_GUARD_MS) return;
   if (state.mode === "kindle") {
     const rect = els.pager.getBoundingClientRect();
     const frac = rect.height > 0 ? (clientY - rect.top) / rect.height : 0.5;
@@ -1266,6 +1273,7 @@ function setControlsHidden(hidden, opts) {
   const next = !!hidden;
   const changed = next !== state.controlsHidden;
   state.controlsHidden = next;
+  if (changed) state.controlsToggledAt = performance.now();
   applyControlsAttr();
   if (next) setMoreOpen(false);
   if (els.btnHide) els.btnHide.setAttribute("aria-pressed", next ? "true" : "false");
@@ -1751,6 +1759,7 @@ els.viewer.addEventListener("touchcancel", onPinchEnd, { passive: true });
 els.viewer.addEventListener("click", (e) => {
   if (isPaged() || !state.pdf) return;
   if (!(e.target.closest(".page-wrap") || e.target === els.viewer || e.target === els.pages)) return;
+  if (performance.now() - state.controlsToggledAt < CONTROLS_TOGGLE_GUARD_MS) return;
   if (state.controlsHidden) {
     setControlsHidden(false);
     return;
