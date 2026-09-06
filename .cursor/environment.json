@@ -1,0 +1,13 @@
+{
+  "name": "Sundar Gutka Reader",
+  "install": "python3 --version",
+  "terminals": [
+    {
+      "name": "web-server",
+      "command": "python3 -m http.server 8765 --bind 0.0.0.0"
+    }
+  ],
+  "ports": [
+    8765
+  ]
+}
