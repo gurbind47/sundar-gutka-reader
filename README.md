@@ -9,7 +9,7 @@ Sundar Gutka (Damdami Taksal) path reader for **laptop, tablet, and phone**.
 - **Full screen** (`F`) on phone, tablet, and desktop; on iPhone Safari use Add to Home Screen for a true full screen
 - **Hide controls** (`H`) for a clean page — tap the page once (Kindle: the middle) to bring the controls back, with a short on-screen instruction
 - Auto-scroll speed **1–5** (pace scales with page size so speed 3 feels similar on phone and desktop; range matches the former very-slow 1–2 band with finer steps). In Book / Kindle, Play turns pages automatically at the same pace
-- **Text size** − / + (70%–200% in Scroll mode; on phone, pinch or Size enlarges pages — pan inside the screen to read; no edge crop). Book / Kindle always fit the whole page to the screen
+- **Text size** − / + (70%–200% in Scroll mode; on phone, pinch or Size enlarges pages — pan inside the screen to read; no edge crop). Book / Kindle always fit the whole page to the screen. The pages are landscape scans, so on a phone held upright they are width-limited — turn the phone sideways (and Hide the controls) for the largest text
 - **Day / Night / Auto** theme (Auto follows system)
 - **Banis** jump menu (26 banis)
 - Compact **mobile toolbar** (Play / Banis / Speed / Mode; More for Size, Theme, Page, Full, Hide)
