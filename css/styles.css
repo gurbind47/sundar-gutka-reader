@@ -158,6 +158,12 @@ body {
   outline-offset: 2px;
 }
 
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .btn-primary {
   background: var(--accent);
   color: #1a1510;
@@ -373,6 +379,229 @@ html[data-resolved="day"] .page-badge {
   display: none;
 }
 
+/* ——— Reading modes: Scroll shows the list, Book / Kindle show the pager ——— */
+
+html:not([data-mode="scroll"]) .pages {
+  display: none;
+}
+
+html[data-mode="scroll"] .pager {
+  display: none;
+}
+
+html:not([data-mode="scroll"]) .viewer {
+  overflow: hidden;
+  touch-action: none;
+}
+
+.pager {
+  position: absolute;
+  top: var(--safe-top);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  background: var(--bg);
+}
+
+.pager.book {
+  cursor: grab;
+}
+
+.pager.book.dragging {
+  cursor: grabbing;
+}
+
+.pager-track {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+
+.pager-slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pager-slide[data-slot="prev"] {
+  transform: translateX(-100%);
+}
+
+.pager-slide[data-slot="next"] {
+  transform: translateX(100%);
+}
+
+.pager-slide canvas {
+  display: block;
+  background: #fff;
+  box-shadow: var(--page-shadow);
+}
+
+.pager-slide canvas[width="0"] {
+  visibility: hidden;
+}
+
+html[data-resolved="night"] .pager-slide canvas {
+  background: #1c1814;
+  filter: invert(0.92) hue-rotate(180deg) brightness(0.95) contrast(0.95);
+}
+
+.pager-track.kindle-turn {
+  animation: pager-flash 160ms ease-out;
+}
+
+@keyframes pager-flash {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.pager-badge {
+  top: 8px;
+  right: 10px;
+  font-size: 0.75rem;
+  z-index: 3;
+}
+
+/* Time left on this page while auto-turning */
+.pager-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(0);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.pager.playing .pager-progress {
+  opacity: 0.9;
+}
+
+/* ——— Hide controls: toolbar gone, page fills the screen ——— */
+
+html[data-controls="hidden"] .toolbar {
+  display: none !important;
+}
+
+html[data-controls="hidden"] .viewer {
+  padding-top: var(--safe-top);
+}
+
+/* ——— Instruction hint (big text, fades out) ——— */
+
+.hint {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.hint[hidden] {
+  display: none;
+}
+
+.hint.show {
+  opacity: 1;
+}
+
+.hint-text {
+  position: relative;
+  z-index: 2;
+  max-width: min(34rem, 92%);
+  padding: 0.9rem 1.3rem;
+  border-radius: 14px;
+  background: rgba(26, 21, 16, 0.88);
+  color: #f5efe6;
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+
+.hint-text > div + div {
+  margin-top: 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #e8dcc8;
+}
+
+.hint.plain .hint-text {
+  font-size: 1.15rem;
+}
+
+.hint-zones {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
+}
+
+.hint-zones[hidden] {
+  display: none;
+}
+
+.hint-zone {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(212, 160, 23, 0.16);
+  border: 2px dashed rgba(212, 160, 23, 0.6);
+}
+
+.hint-zone-mid {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.hint.zones .hint-zone-mid span {
+  display: none;
+}
+
+.hint-zone span {
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(26, 21, 16, 0.75);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hint,
+  .pager-progress {
+    transition: none;
+  }
+
+  .pager-track.kindle-turn {
+    animation: none;
+  }
+}
+
 /* ——— Mobile: one slim bar; More reveals extras ——— */
 
 @media (max-width: 720px) {
@@ -422,9 +651,25 @@ html[data-resolved="day"] .page-badge {
     display: none;
   }
 
-  #btnBanis {
+  #btnBanis,
+  #btnMode,
+  #btnFull,
+  #btnHide {
     padding: 0.3rem 0.5rem;
     font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  #btnMode {
+    flex-shrink: 0;
+  }
+
+  .hint-text {
+    font-size: 1.15rem;
+  }
+
+  .hint-zone {
+    font-size: 1.3rem;
   }
 
   .toolbar-main {
@@ -488,7 +733,8 @@ html[data-resolved="day"] .page-badge {
     padding-bottom: calc(0.4rem + var(--safe-bottom));
   }
 
-  .viewer {
+  .viewer,
+  html[data-controls="hidden"] .viewer {
     /* Status-bar inset lives on the top of the viewer in standalone (toolbar is bottom). */
     padding-top: var(--safe-top);
   }
