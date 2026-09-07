@@ -25,9 +25,13 @@ const HINT_MS = 3500;
 /** Book mode: drag past this fraction of the width (or fast flick) commits a page turn. */
 const SWIPE_COMMIT_FRACTION = 0.2;
 const SWIPE_COMMIT_VELOCITY = 0.45; // px per ms
+/** A fast flick still needs to travel this far (fraction of width, min 30px) to commit. */
+const SWIPE_FLICK_MIN_FRACTION = 0.06;
 const TAP_MAX_MOVE = 10;
 const TAP_MAX_MS = 350;
 const PAGE_TURN_MS = 220;
+/** Ignore page taps briefly after the toolbar appears / disappears under the finger. */
+const CONTROLS_TOGGLE_GUARD_MS = 400;
 
 const BANIS = [
   { name: "Japji Sahib", slug: "japji", page: 11 },
@@ -130,6 +134,8 @@ const state = {
   pageSize: { w: 1425, h: 2288 },
   /** Elapsed ms on the current page while auto-turning in Book mode. */
   turnElapsed: 0,
+  /** performance.now() of the last controls show / hide (tap guard). */
+  controlsToggledAt: -Infinity,
 };
 
 /** One-page-at-a-time viewer used by Book mode. */
@@ -140,6 +146,7 @@ const pager = {
   fitH: 0,
   drag: null,
   animating: false,
+  animToken: 0,
   lastWheel: 0,
 };
 
@@ -774,6 +781,8 @@ function initPager() {
     pageNum: 0,
     task: null,
     renderedW: 0,
+    gen: 0,
+    pending: Promise.resolve(),
   }));
 }
 
@@ -786,8 +795,16 @@ function computePagerFit() {
   const availW = Math.max(120, vw - pad * 2);
   const availH = Math.max(120, vh - pad * 2);
   const scale = Math.min(availW / state.pageSize.w, availH / state.pageSize.h);
-  pager.fitW = Math.max(100, Math.floor(state.pageSize.w * scale));
-  pager.fitH = Math.max(100, Math.floor(state.pageSize.h * scale));
+  pager.fitW = Math.max(100, Math.min(availW, Math.round(state.pageSize.w * scale)));
+  pager.fitH = Math.max(100, Math.min(availH, Math.round(state.pageSize.h * scale)));
+}
+
+/** Landscape page on an upright phone: the page is width-limited, so sideways reads bigger. */
+function sidewaysHelps() {
+  if (!isPaged() || isWideLayout()) return false;
+  const portraitScreen = window.innerHeight > window.innerWidth;
+  const landscapePage = state.pageSize.w > state.pageSize.h;
+  return portraitScreen && landscapePage;
 }
 
 function cancelSlide(slide) {
@@ -825,17 +842,33 @@ async function renderSlide(slide, pageNum) {
   slide.canvas.style.width = pager.fitW + "px";
   slide.canvas.style.height = pager.fitH + "px";
   const targetW = pager.fitW;
-  try {
-    await renderPageToCanvas(pageNum, slide.canvas, targetW, (task) => {
-      slide.task = task;
-    });
-    if (slide.pageNum === pageNum) {
-      slide.task = null;
-      slide.renderedW = targetW;
+  const gen = ++slide.gen;
+  const previous = slide.pending;
+  // One render at a time per canvas: PDF.js rejects a second render() on a busy canvas.
+  slide.pending = (async () => {
+    try {
+      await previous;
+    } catch (_) {
+      /* earlier render already reported */
     }
-  } catch (err) {
-    if (!isRenderCancelled(err)) console.warn("Render failed page", pageNum, err);
-  }
+    if (slide.gen !== gen || !state.pdf) return;
+    try {
+      await renderPageToCanvas(pageNum, slide.canvas, targetW, (task) => {
+        if (slide.gen !== gen) {
+          task.cancel();
+          return;
+        }
+        slide.task = task;
+      });
+      if (slide.gen === gen) {
+        slide.task = null;
+        slide.renderedW = targetW;
+      }
+    } catch (err) {
+      if (!isRenderCancelled(err)) console.warn("Render failed page", pageNum, err);
+    }
+  })();
+  await slide.pending;
 }
 
 /**
@@ -905,6 +938,7 @@ function pagerGoTo(n) {
 
 function resetTrackTransform() {
   if (!els.pagerTrack) return;
+  pager.animToken = (pager.animToken || 0) + 1;
   els.pagerTrack.style.transition = "none";
   els.pagerTrack.style.transform = "translateX(0px)";
   pager.animating = false;
@@ -936,6 +970,7 @@ function pagerAnimateTo(target, dir) {
   const track = els.pagerTrack;
   const width = els.pager.clientWidth || window.innerWidth;
   pager.animating = true;
+  const token = (pager.animToken = (pager.animToken || 0) + 1);
   els.pager.classList.remove("dragging");
   track.style.transition = "transform " + PAGE_TURN_MS + "ms ease-out";
   track.style.transform = "translateX(" + -dir * width + "px)";
@@ -945,6 +980,8 @@ function pagerAnimateTo(target, dir) {
     done = true;
     track.removeEventListener("transitionend", finish);
     window.clearTimeout(timer);
+    // A mode switch or jump reset the track while we were sliding: drop this turn.
+    if (pager.animToken !== token) return;
     track.style.transition = "none";
     pagerAssign(target);
     track.style.transform = "translateX(0px)";
@@ -1049,7 +1086,11 @@ function onPagerPointerUp(e) {
     const dir = dx < 0 ? 1 : -1;
     const target = pager.cur + dir;
     const farEnough = Math.abs(dx) > width * SWIPE_COMMIT_FRACTION;
-    const fastEnough = Math.abs(d.velocity) > SWIPE_COMMIT_VELOCITY && Math.sign(d.velocity) === -dir;
+    const flickMin = Math.max(30, width * SWIPE_FLICK_MIN_FRACTION);
+    const fastEnough =
+      Math.abs(dx) > flickMin &&
+      Math.abs(d.velocity) > SWIPE_COMMIT_VELOCITY &&
+      Math.sign(d.velocity) === -dir;
     if ((farEnough || fastEnough) && target >= 1 && target <= state.numPages) {
       if (state.playing) pause();
       pagerAnimateTo(target, dir);
@@ -1074,6 +1115,9 @@ function onPagerPointerCancel(e) {
 }
 
 function handlePagerTap() {
+  // The layout just shifted under the pointer (toolbar shown / hidden): a bounced or
+  // doubled tap must not turn the page or undo the toggle.
+  if (performance.now() - state.controlsToggledAt < CONTROLS_TOGGLE_GUARD_MS) return;
   toggleControls();
 }
 
@@ -1140,8 +1184,13 @@ function cycleMode() {
 
 function hintMessage() {
   const hidden = state.controlsHidden;
+  const sideways = sidewaysHelps() ? "Turn the phone sideways for bigger text" : "";
   if (state.mode === "book") {
-    return ["Swipe ← → to turn pages", hidden ? "Tap once to show controls" : "Tap once to hide controls"];
+    return [
+      "Swipe ← → to turn pages",
+      hidden ? "Tap once to show controls" : "Tap once to hide controls",
+      sideways,
+    ];
   }
   return ["Scroll to read · Play auto-scrolls", hidden ? "Tap once to show controls" : ""];
 }
@@ -1189,6 +1238,7 @@ function setControlsHidden(hidden, opts) {
   const next = !!hidden;
   const changed = next !== state.controlsHidden;
   state.controlsHidden = next;
+  if (changed) state.controlsToggledAt = performance.now();
   applyControlsAttr();
   if (next) setMoreOpen(false);
   if (els.btnHide) els.btnHide.setAttribute("aria-pressed", next ? "true" : "false");
@@ -1674,6 +1724,7 @@ els.viewer.addEventListener("touchcancel", onPinchEnd, { passive: true });
 els.viewer.addEventListener("click", (e) => {
   if (isPaged() || !state.pdf) return;
   if (!(e.target.closest(".page-wrap") || e.target === els.viewer || e.target === els.pages)) return;
+  if (performance.now() - state.controlsToggledAt < CONTROLS_TOGGLE_GUARD_MS) return;
   if (state.controlsHidden) {
     setControlsHidden(false);
     return;
