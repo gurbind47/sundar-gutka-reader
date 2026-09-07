@@ -2,14 +2,13 @@
 
 Sundar Gutka (Damdami Taksal) path reader for **laptop, tablet, and phone**.
 
-- Three **reading modes** (Mode button / `M`):
+- Two **reading modes** (Mode button / `M`):
   - **Scroll** — continuous pages with auto-scroll
   - **Book** — one page fills the screen; **swipe left / right** (or drag with the mouse) to turn the page
-  - **Kindle** — one page fills the screen; **tap the top** for the previous page, **tap the bottom** for the next, tap the middle for controls
 - **Full screen** (`F`) on phone, tablet, and desktop; on iPhone Safari use Add to Home Screen for a true full screen
-- **Hide controls** (`H`) for a clean page — tap the page once (Kindle: the middle) to bring the controls back, with a short on-screen instruction
-- Auto-scroll speed **1–5** (pace scales with page size so speed 3 feels similar on phone and desktop; range matches the former very-slow 1–2 band with finer steps). In Book / Kindle, Play turns pages automatically at the same pace
-- **Text size** − / + (70%–200% in Scroll mode; on phone, pinch or Size enlarges pages — pan inside the screen to read; no edge crop). Book / Kindle always fit the whole page to the screen. The pages are landscape scans, so on a phone held upright they are width-limited — turn the phone sideways (and Hide the controls) for the largest text
+- **Hide controls** (`H`) for a clean page — tap the page once to bring the controls back, with a short on-screen instruction
+- Auto-scroll speed **1–5** (pace scales with page size so speed 3 feels similar on phone and desktop; range matches the former very-slow 1–2 band with finer steps). In Book, Play turns pages automatically at the same pace
+- **Text size** − / + (70%–200% in Scroll mode; on phone, pinch or Size enlarges pages — pan inside the screen to read; no edge crop). Book always fits the whole page to the screen. The pages are landscape scans, so on a phone held upright they are width-limited — turn the phone sideways (and Hide the controls) for the largest text
 - **Day / Night / Auto** theme (Auto follows system)
 - **Banis** jump menu (26 banis)
 - Compact **mobile toolbar** (Play / Banis / Speed / Mode; More for Size, Theme, Page, Full, Hide)
@@ -57,24 +56,23 @@ Keep the folder **`Desktop/sundar-gutka-reader`** on your Desktop (the app needs
 
 | Control | Action |
 |--------|--------|
-| **Play / Pause** | Auto-scroll in Scroll mode; auto page-turn in Book / Kindle (Space) |
+| **Play / Pause** | Auto-scroll in Scroll mode; auto page-turn in Book (Space) |
 | **Speed 1–5** | 1 = slowest path, 5 = fastest within the slow band (also sets the auto page-turn pace) |
 | **Banis** | Jump to Japji, Rehras, Sukhmani… (`B`) |
-| **Mode** | Scroll → Book → Kindle (`M`) |
+| **Mode** | Scroll → Book (`M`) |
 | **More** (phone) | Size, Theme, Page jump, Full, Hide |
-| **Size − / +** | Smaller / larger in Scroll mode (`-` / `+` keys; pinch on phone). Locked to "Fit" in Book / Kindle |
+| **Size − / +** | Smaller / larger in Scroll mode (`-` / `+` keys; pinch on phone). Locked to "Fit" in Book |
 | **Auto / Day / Night** | Theme (`T`) |
 | **Page + Go** | Jump to page number |
 | **Full** | Full screen on / off (`F`; `Esc` exits) |
 | **Hide** | Hide the toolbar (`H`). Tap the page once to show it again; `Esc` also restores it |
 
-### Gestures and keys in Book / Kindle
+### Gestures and keys in Book
 
 | Input | Action |
 |-------|--------|
-| Swipe or drag left / right (Book) | Next / previous page |
-| Tap top third / bottom third (Kindle) | Previous / next page |
-| Tap middle third (Kindle), tap anywhere (Book) | Show / hide controls |
+| Swipe or drag left / right | Next / previous page |
+| Tap anywhere | Show / hide controls |
 | `←` `→`, `PageUp` `PageDown`, mouse wheel | Previous / next page |
 | `↑` `↓` | Speed up / down |
 

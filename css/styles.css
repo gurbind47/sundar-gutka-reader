@@ -379,7 +379,7 @@ html[data-resolved="day"] .page-badge {
   display: none;
 }
 
-/* ——— Reading modes: Scroll shows the list, Book / Kindle show the pager ——— */
+/* ——— Reading modes: Scroll shows the list, Book shows the pager ——— */
 
 html:not([data-mode="scroll"]) .pages {
   display: none;
@@ -450,19 +450,6 @@ html:not([data-mode="scroll"]) .viewer {
 html[data-resolved="night"] .pager-slide canvas {
   background: #1c1814;
   filter: invert(0.92) hue-rotate(180deg) brightness(0.95) contrast(0.95);
-}
-
-.pager-track.kindle-turn {
-  animation: pager-flash 160ms ease-out;
-}
-
-@keyframes pager-flash {
-  from {
-    opacity: 0.35;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 .pager-badge {
@@ -552,53 +539,10 @@ html[data-controls="hidden"] .viewer {
   font-size: 1.15rem;
 }
 
-.hint-zones {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  z-index: 1;
-}
-
-.hint-zones[hidden] {
-  display: none;
-}
-
-.hint-zone {
-  flex: 1 1 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: #fff;
-  background: rgba(212, 160, 23, 0.16);
-  border: 2px dashed rgba(212, 160, 23, 0.6);
-}
-
-.hint-zone-mid {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.hint.zones .hint-zone-mid span {
-  display: none;
-}
-
-.hint-zone span {
-  padding: 0.3rem 0.9rem;
-  border-radius: 999px;
-  background: rgba(26, 21, 16, 0.75);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .hint,
   .pager-progress {
     transition: none;
-  }
-
-  .pager-track.kindle-turn {
-    animation: none;
   }
 }
 
@@ -666,10 +610,6 @@ html[data-controls="hidden"] .viewer {
 
   .hint-text {
     font-size: 1.15rem;
-  }
-
-  .hint-zone {
-    font-size: 1.3rem;
   }
 
   .toolbar-main {

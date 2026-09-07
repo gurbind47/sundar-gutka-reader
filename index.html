@@ -13,7 +13,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="css/styles.css?v=11" />
+  <link rel="stylesheet" href="css/styles.css?v=12" />
   <script>
     /* Apply theme before paint to avoid flash */
     (function () {
@@ -25,7 +25,7 @@
         if (raw) {
           var d = JSON.parse(raw);
           if (d.theme === "day" || d.theme === "night" || d.theme === "system") pref = d.theme;
-          if (d.mode === "book" || d.mode === "kindle") mode = d.mode;
+          if (d.mode === "book") mode = d.mode;
           hidden = d.controlsHidden === true;
         }
         document.documentElement.setAttribute("data-theme", pref);
@@ -69,7 +69,7 @@
           <span class="speed-value" id="speedValue">3</span>
         </label>
 
-        <button type="button" id="btnMode" class="btn btn-secondary btn-compact" title="Reading mode: Scroll / Book / Kindle (M)" aria-label="Reading mode">
+        <button type="button" id="btnMode" class="btn btn-secondary btn-compact" title="Reading mode: Scroll / Book (M)" aria-label="Reading mode">
           <span id="modeIcon" aria-hidden="true">☰</span>
           <span class="btn-label" id="modeLabel">Scroll</span>
         </button>
@@ -125,11 +125,6 @@
       </section>
 
       <div id="hint" class="hint" role="status" aria-live="polite" hidden>
-        <div class="hint-zones" id="hintZones" aria-hidden="true">
-          <div class="hint-zone"><span>▲ Previous</span></div>
-          <div class="hint-zone hint-zone-mid"><span>Controls</span></div>
-          <div class="hint-zone"><span>▼ Next</span></div>
-        </div>
         <div class="hint-text" id="hintText"></div>
       </div>
     </main>
@@ -145,6 +140,6 @@
     <div id="banisList" class="banis-list" role="list"></div>
   </aside>
 
-  <script type="module" src="js/app.js?v=11"></script>
+  <script type="module" src="js/app.js?v=12"></script>
 </body>
 </html>

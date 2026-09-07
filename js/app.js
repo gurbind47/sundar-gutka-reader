@@ -15,12 +15,11 @@ const THEME_CYCLE = ["system", "day", "night"];
 const REF_PAGE_HEIGHT = 420;
 /** Base px/sec at REF_PAGE_HEIGHT for speeds 1–5 (within former 1–2 pace). */
 const SPEED_TABLE = [0, 5, 5.75, 6.5, 7.25, 8];
-/** Reading modes: continuous scroll, swipe-to-turn book, tap-zone kindle. */
-const MODES = ["scroll", "book", "kindle"];
+/** Reading modes: continuous scroll, swipe-to-turn book. */
+const MODES = ["scroll", "book"];
 const MODE_META = {
   scroll: { icon: "↕", label: "Scroll", title: "Scroll mode: continuous pages, auto-scroll" },
   book: { icon: "↔", label: "Book", title: "Book mode: swipe left / right to turn the page" },
-  kindle: { icon: "▤", label: "Kindle", title: "Kindle mode: tap top = previous, tap bottom = next" },
 };
 const HINT_MS = 3500;
 /** Book mode: drag past this fraction of the width (or fast flick) commits a page turn. */
@@ -102,7 +101,6 @@ const els = {
   pagerBadge: document.getElementById("pagerBadge"),
   pagerProgress: document.getElementById("pagerProgress"),
   hint: document.getElementById("hint"),
-  hintZones: document.getElementById("hintZones"),
   hintText: document.getElementById("hintText"),
 };
 
@@ -132,15 +130,15 @@ const state = {
   hintHideTimer: null,
   /** True when entering full screen is what hid the controls (restore them on exit). */
   fsHidControls: false,
-  /** Unscaled size of page 1 (PDF units) used to fit pages in Book / Kindle modes. */
+  /** Unscaled size of page 1 (PDF units) used to fit pages in Book mode. */
   pageSize: { w: 1425, h: 2288 },
-  /** Elapsed ms on the current page while auto-turning in Book / Kindle modes. */
+  /** Elapsed ms on the current page while auto-turning in Book mode. */
   turnElapsed: 0,
   /** performance.now() of the last controls show / hide (tap guard). */
   controlsToggledAt: -Infinity,
 };
 
-/** One-page-at-a-time viewer shared by Book and Kindle modes. */
+/** One-page-at-a-time viewer used by Book mode. */
 const pager = {
   cur: 1,
   slides: [],
@@ -342,9 +340,9 @@ function updateSpeedUI() {
 }
 
 function updateZoomUI() {
-  // Book / Kindle always fit the whole page to the screen, so Size is locked there.
+  // Book always fits the whole page to the screen, so Size is locked there.
   const locked = isPaged();
-  const lockTitle = "Page fits the screen in Book / Kindle mode. Switch to Scroll to change Size.";
+  const lockTitle = "Page fits the screen in Book mode. Switch to Scroll to change Size.";
   if (els.zoomValue) els.zoomValue.textContent = locked ? "Fit" : state.zoom + "%";
   if (els.btnZoomOut) {
     els.btnZoomOut.disabled = locked || state.zoom <= ZOOM_STEPS[0];
@@ -667,7 +665,7 @@ function onPinchStart(e) {
 
 function onPinchMove(e) {
   if (isPaged()) {
-    // No zoom in Book / Kindle: block the browser's own page pinch-zoom instead.
+    // No zoom in Book: block the browser's own page pinch-zoom instead.
     if (e.touches.length === 2 && e.cancelable) e.preventDefault();
     return;
   }
@@ -773,7 +771,7 @@ function goToPage(pageNum) {
   });
 }
 
-// ——— Pager (Book / Kindle: one page fitted to the screen) ———
+// ——— Pager (Book: one page fitted to the screen) ———
 
 function initPager() {
   if (!els.pagerTrack) return;
@@ -947,8 +945,8 @@ function resetTrackTransform() {
 }
 
 /**
- * Turn `dir` pages (+1 next, -1 previous). Book mode slides; Kindle mode swaps
- * with a short flash. Returns false when already at the first / last page.
+ * Turn `dir` pages (+1 next, -1 previous). Book mode slides to the target page.
+ * Returns false when already at the first / last page.
  */
 function pagerTurn(dir, opts) {
   const o = opts || {};
@@ -959,23 +957,13 @@ function pagerTurn(dir, opts) {
     return false;
   }
   if (!o.auto && state.playing) pause();
-  if (state.mode === "book" && !prefersReducedMotion()) {
+  if (!prefersReducedMotion()) {
     pagerAnimateTo(target, dir);
   } else {
     pagerAssign(target);
     pagerCommit(target);
-    if (state.mode === "kindle" && !prefersReducedMotion()) flashTrack();
   }
   return true;
-}
-
-function flashTrack() {
-  const track = els.pagerTrack;
-  if (!track) return;
-  track.classList.remove("kindle-turn");
-  // Restart the animation even when the class was just removed.
-  void track.offsetWidth;
-  track.classList.add("kindle-turn");
 }
 
 function pagerAnimateTo(target, dir) {
@@ -1016,7 +1004,7 @@ function snapTrackBack() {
   }, 180);
 }
 
-// ——— Pager gestures: Book swipe, Kindle tap zones, tap for controls ———
+// ——— Pager gestures: Book swipe, tap for controls ———
 
 function onPagerPointerDown(e) {
   if (!isPaged() || !state.pdf) return;
@@ -1115,7 +1103,7 @@ function onPagerPointerUp(e) {
   if (d.cancelled) return;
   const isTap = Math.abs(dx) <= TAP_MAX_MOVE && Math.abs(dy) <= TAP_MAX_MOVE && elapsed <= TAP_MAX_MS * 2;
   if (!isTap) return;
-  handlePagerTap(e.clientY);
+  handlePagerTap();
 }
 
 function onPagerPointerCancel(e) {
@@ -1126,22 +1114,10 @@ function onPagerPointerCancel(e) {
   if (d.swiping) snapTrackBack();
 }
 
-function handlePagerTap(clientY) {
+function handlePagerTap() {
   // The layout just shifted under the pointer (toolbar shown / hidden): a bounced or
   // doubled tap must not turn the page or undo the toggle.
   if (performance.now() - state.controlsToggledAt < CONTROLS_TOGGLE_GUARD_MS) return;
-  if (state.mode === "kindle") {
-    const rect = els.pager.getBoundingClientRect();
-    const frac = rect.height > 0 ? (clientY - rect.top) / rect.height : 0.5;
-    if (frac < 1 / 3) {
-      pagerTurn(-1);
-      return;
-    }
-    if (frac > 2 / 3) {
-      pagerTurn(1);
-      return;
-    }
-  }
   toggleControls();
 }
 
@@ -1216,19 +1192,11 @@ function hintMessage() {
       sideways,
     ];
   }
-  if (state.mode === "kindle") {
-    return [
-      "Tap top ▲ previous · Tap bottom ▼ next",
-      hidden ? "Tap middle to show controls" : "Tap middle to hide controls",
-      sideways,
-    ];
-  }
   return ["Scroll to read · Play auto-scrolls", hidden ? "Tap once to show controls" : ""];
 }
 
 /**
  * Show the per-mode instructions (or a custom message) for a few seconds.
- * Kindle mode also outlines its three tap zones.
  */
 function showHint(text, ms, opts) {
   if (!els.hint || !els.hintText) return;
@@ -1242,9 +1210,6 @@ function showHint(text, ms, opts) {
       p.textContent = line;
       els.hintText.appendChild(p);
     });
-  const zones = !o.plain && !text && state.mode === "kindle";
-  if (els.hintZones) els.hintZones.hidden = !zones;
-  els.hint.classList.toggle("zones", zones);
   els.hint.classList.toggle("plain", !!o.plain);
 
   window.clearTimeout(state.hintHideTimer);
@@ -1502,7 +1467,7 @@ function tick(ts) {
   state.rafId = requestAnimationFrame(tick);
 }
 
-// ——— Auto page-turn (Book / Kindle) ———
+// ——— Auto page-turn (Book) ———
 
 /** Time on one page at the current speed: same pace as scrolling one page height. */
 function secondsPerPage() {
