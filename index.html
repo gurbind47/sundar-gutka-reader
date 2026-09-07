@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="system">
+<html lang="en" data-theme="system" data-mode="scroll" data-controls="shown">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -13,18 +13,24 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="css/styles.css?v=10" />
+  <link rel="stylesheet" href="css/styles.css?v=11" />
   <script>
     /* Apply theme before paint to avoid flash */
     (function () {
       try {
         var raw = localStorage.getItem("sundar-gutka-reader-v2");
         var pref = "system";
+        var mode = "scroll";
+        var hidden = false;
         if (raw) {
           var d = JSON.parse(raw);
           if (d.theme === "day" || d.theme === "night" || d.theme === "system") pref = d.theme;
+          if (d.mode === "book" || d.mode === "kindle") mode = d.mode;
+          hidden = d.controlsHidden === true;
         }
         document.documentElement.setAttribute("data-theme", pref);
+        document.documentElement.setAttribute("data-mode", mode);
+        document.documentElement.setAttribute("data-controls", hidden ? "hidden" : "shown");
         var night =
           pref === "night" ||
           (pref === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -63,6 +69,11 @@
           <span class="speed-value" id="speedValue">3</span>
         </label>
 
+        <button type="button" id="btnMode" class="btn btn-secondary btn-compact" title="Reading mode: Scroll / Book / Kindle (M)" aria-label="Reading mode">
+          <span id="modeIcon" aria-hidden="true">☰</span>
+          <span class="btn-label" id="modeLabel">Scroll</span>
+        </button>
+
         <button type="button" id="btnMore" class="btn btn-secondary btn-compact" aria-expanded="false" aria-controls="toolbarExtra" title="More controls">
           <span class="btn-label" id="moreLabel">More</span>
         </button>
@@ -87,12 +98,40 @@
           <span class="page-total" id="pageTotal">/ —</span>
         </label>
         <button type="button" id="btnGo" class="btn btn-secondary" title="Go to page">Go</button>
+
+        <button type="button" id="btnFull" class="btn btn-secondary btn-compact" title="Full screen (F)" aria-label="Full screen" aria-pressed="false">
+          <span id="fullIcon" aria-hidden="true">⛶</span>
+          <span class="btn-label" id="fullLabel">Full</span>
+        </button>
+        <button type="button" id="btnHide" class="btn btn-secondary btn-compact" title="Hide controls — tap the page to bring them back (H)" aria-label="Hide controls">
+          <span aria-hidden="true">◱</span>
+          <span class="btn-label">Hide</span>
+        </button>
       </div>
     </header>
 
     <main id="viewer" class="viewer" tabindex="0" aria-label="Sundar Gutka pages">
       <div id="status" class="status" role="status">Loading Sundar Gutka…</div>
       <div id="pages" class="pages"></div>
+
+      <section id="pager" class="pager" aria-label="Page view">
+        <div class="pager-track" id="pagerTrack">
+          <div class="pager-slide" data-slot="prev"><canvas width="0" height="0"></canvas></div>
+          <div class="pager-slide" data-slot="cur"><canvas width="0" height="0"></canvas></div>
+          <div class="pager-slide" data-slot="next"><canvas width="0" height="0"></canvas></div>
+        </div>
+        <span class="page-badge pager-badge" id="pagerBadge" aria-hidden="true"></span>
+        <div class="pager-progress" id="pagerProgress" aria-hidden="true"></div>
+      </section>
+
+      <div id="hint" class="hint" role="status" aria-live="polite" hidden>
+        <div class="hint-zones" id="hintZones" aria-hidden="true">
+          <div class="hint-zone"><span>▲ Previous</span></div>
+          <div class="hint-zone hint-zone-mid"><span>Controls</span></div>
+          <div class="hint-zone"><span>▼ Next</span></div>
+        </div>
+        <div class="hint-text" id="hintText"></div>
+      </div>
     </main>
   </div>
 
@@ -106,6 +145,6 @@
     <div id="banisList" class="banis-list" role="list"></div>
   </aside>
 
-  <script type="module" src="js/app.js?v=10"></script>
+  <script type="module" src="js/app.js?v=11"></script>
 </body>
 </html>
